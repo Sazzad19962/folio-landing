@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Folio — PDF and EPUB, made readable</title>
+  <meta name="description" content="Folio reads, converts and syncs your PDFs and EPUBs. Turn a rigid PDF into a reflowable ebook in seconds.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2310151F'/%3E%3Cpath d='M9 8h9l5 5v11H9z M18 8v5h5' fill='none' stroke='%23F3F4F0' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="container nav" aria-label="Main">
+    <a href="#top" class="brand">
+      <span class="brand-mark">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F3F4F0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h9l7 7v9H4z"/><path d="M13 4v7h7"/></svg>
+      </span>
+      <span class="brand-name">Folio</span>
+    </a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <div class="nav-actions">
+      <a href="#signin" class="signin">Sign in</a>
+      <a href="#start" class="btn btn-dark">Get Folio</a>
+    </div>
+  </nav>
+</header>
+
+<main>
+  <!-- Hero -->
+  <section id="top" class="container hero">
+    <div class="hero-copy">
+      <div class="chips">
+        <span class="chip">.pdf</span><span class="chip">.epub</span><span class="chip">.mobi</span><span class="chip">.docx</span>
+      </div>
+      <h1 class="display">Every book.<br>Every format.<br><span class="accent">One shelf.</span></h1>
+      <p class="lede">Folio reads, converts and syncs your PDFs and EPUBs. Turn a rigid PDF into a reflowable ebook in seconds, then pick up on any device right where you left off.</p>
+      <div class="cta-row">
+        <a href="#converter" class="btn btn-accent">Convert a file free
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
+        </a>
+        <a href="#download" class="btn btn-outline">Download the app</a>
+      </div>
+      <p class="fineprint">No account needed for your first conversion. Files are deleted after [RETENTION PERIOD].</p>
+    </div>
+
+    <div class="hero-card-wrap">
+      <form id="converter" class="converter" aria-label="Convert a file">
+        <div class="dropzone" id="dropzone">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#10151F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+          <div class="dropzone-title">Drop a PDF or EPUB here</div>
+          <div class="muted" style="font-size:14px">or <label for="file">browse your files</label></div>
+          <input id="file" class="sr-only" type="file" accept=".pdf,.epub,.mobi,.azw3,.docx,.txt,.cbz">
+        </div>
+
+        <div class="file-row" aria-live="polite">
+          <div class="file-icon" id="file-icon">PDF</div>
+          <div class="file-meta">
+            <div class="file-name" id="file-name">field-notes-on-design.pdf</div>
+            <div class="progress"><span id="progress"></span></div>
+            <div class="file-status" id="file-status">Reflowing text and images…</div>
+          </div>
+        </div>
+
+        <div class="format-row">
+          <label for="from">From</label>
+          <select id="from"><option>PDF</option><option>EPUB</option><option>MOBI</option><option>AZW3</option><option>DOCX</option><option>TXT</option></select>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10151F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
+          <label for="to">To</label>
+          <select id="to"><option>EPUB</option><option>PDF</option><option>MOBI</option><option>AZW3</option></select>
+        </div>
+
+        <button type="submit" class="btn btn-dark convert-btn" id="convert-btn">Convert to EPUB</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- Format strip -->
+  <section class="strip" aria-label="Supported formats">
+    <div class="container strip-inner">
+      <span class="strip-label">Opens and converts</span>
+      <ul class="strip-formats">
+        <li>PDF</li><li>EPUB</li><li>MOBI</li><li>AZW3</li><li>DOCX</li><li>TXT</li><li>CBZ</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features" class="container features">
+    <div class="section-head">
+      <h2 class="display h2">A reader that respects the page — and your eyes.</h2>
+      <p class="muted">Keep a PDF exactly as designed, or let it reflow to fit a phone. Folio handles both without you thinking about formats.</p>
+    </div>
+    <div class="card-grid">
+      <article class="card">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16"/><path d="M4 12h10"/><path d="M4 18h13"/><path d="M18 10l3 2-3 2"/></svg>
+        <h3>Smart reflow</h3>
+        <p>Turns fixed-layout PDFs into flowing text with headings, images and footnotes kept in order.</p>
+      </article>
+      <article class="card">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="13" height="10" rx="1.5"/><rect x="15" y="9" width="6" height="11" rx="1.5"/><path d="M7 18h5"/></svg>
+        <h3>Read anywhere</h3>
+        <p>Desktop, tablet, phone or web. Your place, highlights and notes follow you between devices.</p>
+      </article>
+      <article class="card">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/></svg>
+        <h3>Highlight &amp; annotate</h3>
+        <p>Mark passages in any format, add margin notes and export them all to Markdown in one click.</p>
+      </article>
+      <article class="card">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4v16"/><path d="M9 4v16"/><path d="M13 5l4 15"/><path d="M3 20h18"/></svg>
+        <h3>A tidy library</h3>
+        <p>Covers, authors and series pulled from metadata automatically. Search inside every book at once.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- Reflow demo -->
+  <section class="container reflow" aria-label="PDF to EPUB reflow">
+    <div class="reflow-panel">
+      <figure class="pdf-fig">
+        <div class="pdf-page" aria-hidden="true">
+          <div class="bar title"></div>
+          <div class="bar sub"></div>
+          <div class="pdf-cols">
+            <div>
+              <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar" style="width:80%"></div>
+              <div class="img-ph"></div>
+              <div class="bar"></div><div class="bar"></div><div class="bar" style="width:60%"></div>
+            </div>
+            <div>
+              <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar" style="width:70%"></div>
+              <div class="bar" style="margin-top:8px"></div><div class="bar"></div><div class="bar"></div><div class="bar" style="width:50%"></div>
+            </div>
+          </div>
+        </div>
+        <figcaption>Original PDF — two columns, tiny type</figcaption>
+      </figure>
+
+      <div class="reflow-arrow" aria-hidden="true">
+        <span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg></span>
+        <span>reflow</span>
+      </div>
+
+      <figure class="phone-fig">
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="meta">Chapter 3 · 12 min left</div>
+            <div class="title">Field Notes on Design</div>
+            <p>Text now flows to fit your screen. Pick a font, size and margin that suit you — the layout follows.</p>
+            <p><mark>Highlights stay attached</mark> to the passage even when the text reflows.</p>
+            <div class="img-ph"></div>
+            <p>Images and footnotes land where they belong.</p>
+          </div>
+        </div>
+        <figcaption>Folio EPUB — sized for your phone</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section id="how" class="how">
+    <div class="container how-inner">
+      <h2 class="display h2">Three steps. No settings to learn.</h2>
+      <ol class="steps">
+        <li><span class="num">01</span><h3>Drop your file</h3><p>Drag in a PDF, EPUB, MOBI or Word file — or import a whole folder at once.</p></li>
+        <li><span class="num">02</span><h3>Pick a format</h3><p>Choose EPUB for phones and e-readers, PDF for print, or keep the original.</p></li>
+        <li><span class="num">03</span><h3>Read or send</h3><p>Open it in Folio, download it, or send it straight to your e-reader.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section id="pricing" class="container pricing">
+    <div class="center-head">
+      <h2 class="display h2">Start free. Upgrade when your shelf grows.</h2>
+      <p class="muted">Cancel anytime. Your books stay yours.</p>
+    </div>
+    <div class="plans">
+      <div class="plan plan-free">
+        <div class="plan-top">Free</div>
+        <div class="price">$0</div>
+        <ul>
+          <li>Read PDF and EPUB on every device</li>
+          <li>[N] conversions per month</li>
+          <li>Highlights and notes</li>
+        </ul>
+        <a href="#start" class="btn btn-outline">Get started</a>
+      </div>
+      <div class="plan plan-pro">
+        <div class="plan-top"><span>Pro</span><span class="badge">Most popular</span></div>
+        <div class="price">[YOUR PRICE]<small> /month</small></div>
+        <ul>
+          <li>Unlimited conversions, batch import</li>
+          <li>Library sync and full-text search</li>
+          <li>Send to e-reader</li>
+          <li>Export notes to Markdown</li>
+        </ul>
+        <a href="#start" class="btn btn-accent">Try Pro free for [N] days</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq" class="faq">
+    <h2 class="display">Questions</h2>
+    <div class="faq-list">
+      <details open>
+        <summary>Will my PDF keep its layout?</summary>
+        <p>Yes — if you just read it. Reflow only happens when you convert to EPUB or switch to reading mode, and you can flip back at any time.</p>
+      </details>
+      <details>
+        <summary>Does Folio work with DRM-protected books?</summary>
+        <p>[YOUR DRM POLICY]</p>
+      </details>
+      <details>
+        <summary>Where are my files stored?</summary>
+        <p>[YOUR STORAGE AND PRIVACY DETAILS]</p>
+      </details>
+      <details>
+        <summary>Can I send books to my Kindle or Kobo?</summary>
+        <p>Pro includes Send to e-reader. Add your device once and every conversion can go straight to it.</p>
+      </details>
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <section id="start" class="container final">
+    <div class="final-panel">
+      <h2 class="display">Your whole library, finally readable.</h2>
+      <div class="cta-row">
+        <a href="#converter" class="btn btn-white">Convert a file free</a>
+        <a href="#download" class="btn btn-outline-white">Download the app</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <span class="brand-name">Folio</span>
+    <nav aria-label="Footer">
+      <a href="#privacy">Privacy</a>
+      <a href="#terms">Terms</a>
+      <a href="#help">Help center</a>
+      <a href="#contact">Contact</a>
+    </nav>
+    <span>© <span id="year">2026</span> [COMPANY NAME]</span>
+  </div>
+</footer>
+
+<script src="main.js"></script>
+</body>
+</html>
