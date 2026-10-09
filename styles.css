@@ -178,6 +178,7 @@ img, svg { display: block; }
 .badge { font-family: var(--mono); font-size: 12px; font-weight: 500; padding: 5px 10px; border-radius: 999px; background: var(--accent); color: #fff; }
 .price { font-family: var(--display); font-weight: 800; font-size: 52px; line-height: 1; letter-spacing: -0.03em; }
 .price small { font-family: var(--body); font-weight: 400; font-size: 17px; letter-spacing: 0; color: var(--on-dark-muted); }
+.price-note { margin-top: -10px; font-size: 14px; color: var(--on-dark-muted); }
 .plan ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
 .plan ul li { display: flex; gap: 10px; align-items: flex-start; }
 .plan ul li::before { content: ""; flex: none; width: 16px; height: 16px; margin-top: 5px; border-radius: 999px; background: var(--accent); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5L20 7'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5L20 7'/%3E%3C/svg%3E") center / contain no-repeat; }
