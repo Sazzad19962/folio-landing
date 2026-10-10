@@ -13,6 +13,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2310151F'/%3E%3Cpath d='M9 8h9l5 5v11H9z M18 8v5h5' fill='none' stroke='%23F3F4F0' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Folio">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
 </head>
 <body>
 
@@ -30,6 +36,7 @@
       <a href="#features">Features</a>
       <a href="#how">How it works</a>
       <a href="#pricing">Pricing</a>
+      <a href="#download">Get the app</a>
       <a href="#faq">FAQ</a>
     </div>
     <div class="nav-actions">
@@ -62,10 +69,10 @@
         <h2 class="sr-only">Convert a file</h2>
         <div class="dropzone" id="dropzone">
           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
-          <div class="dropzone-title">Drop a PDF or EPUB here</div>
+          <div class="dropzone-title">Drop a book or document here</div>
           <div class="dropzone-or muted"><span>or</span> <label for="file" class="file-label">Choose a file</label></div>
-          <input id="file" class="sr-only" type="file" accept=".pdf,.epub,application/pdf,application/epub+zip" aria-describedby="file-hint">
-          <p class="dropzone-hint" id="file-hint">PDF or EPUB. Free plan: up to 50 MB per file.</p>
+          <input id="file" class="sr-only" type="file" accept=".pdf,.epub,.mobi,.azw3,.docx,.doc,.txt,application/pdf,application/epub+zip,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" aria-describedby="file-hint">
+          <p class="dropzone-hint" id="file-hint">PDF, EPUB, MOBI, AZW3, Word (DOCX, DOC) or TXT. Free plan: up to 50 MB per file.</p>
         </div>
 
         <div class="file-row">
@@ -79,10 +86,16 @@
 
         <div class="format-row">
           <label for="from">From</label>
-          <select id="from"><option>PDF</option><option>EPUB</option></select>
+          <select id="from">
+            <optgroup label="Ebook"><option>EPUB</option><option>MOBI</option><option>AZW3</option></optgroup>
+            <optgroup label="Document"><option selected>PDF</option><option>DOCX</option><option>DOC</option><option>TXT</option></optgroup>
+          </select>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
           <label for="to">To</label>
-          <select id="to"><option>EPUB</option><option>PDF</option><option>MOBI</option><option>AZW3</option></select>
+          <select id="to">
+            <optgroup label="Ebook"><option>EPUB</option><option>MOBI</option><option>AZW3</option></optgroup>
+            <optgroup label="Document"><option>PDF</option><option>DOCX</option><option>DOC</option></optgroup>
+          </select>
         </div>
 
         <button type="submit" class="btn btn-dark convert-btn" id="convert-btn">Convert to EPUB</button>
@@ -95,7 +108,7 @@
     <div class="container strip-inner">
       <span class="strip-label">Opens and converts</span>
       <ul class="strip-formats">
-        <li>PDF</li><li>EPUB</li><li>MOBI</li><li>AZW3</li><li>DOCX</li><li>TXT</li><li>CBZ</li>
+        <li>PDF</li><li>EPUB</li><li>MOBI</li><li>AZW3</li><li>DOCX</li><li>DOC</li><li>TXT</li><li>CBZ</li>
       </ul>
     </div>
   </section>
@@ -179,7 +192,7 @@
       <h2 class="display h2" id="how-title">Three steps. No settings to learn.</h2>
       <ol class="steps">
         <li><span class="num" aria-hidden="true">01</span><h3>Drop your file</h3><p>Drag in a PDF, EPUB, MOBI or Word file — or import a whole folder at once.</p></li>
-        <li><span class="num" aria-hidden="true">02</span><h3>Pick a format</h3><p>Choose EPUB for phones and e-readers, PDF for print, or keep the original.</p></li>
+        <li><span class="num" aria-hidden="true">02</span><h3>Pick a format</h3><p>Choose EPUB for phones and e-readers, PDF for print, DOCX to edit in Word or Google Docs, or keep the original.</p></li>
         <li><span class="num" aria-hidden="true">03</span><h3>Read or send</h3><p>Open it in Folio, download it, or send it straight to your e-reader.</p></li>
       </ol>
     </div>
@@ -215,6 +228,46 @@
           <li>Export notes to Markdown</li>
         </ul>
         <a href="#start" class="btn btn-accent">Try Pro free for 14 days</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Download / install -->
+  <section id="download" class="container download" aria-labelledby="download-title">
+    <div class="download-panel">
+      <div class="download-copy">
+        <span class="eyebrow">Web app · Android · iPhone · Desktop</span>
+        <h2 id="download-title" class="display h2">Folio on your phone.</h2>
+        <p class="muted">Install Folio straight from your browser. It gets its own icon on your home screen or dock and opens in its own window, like any other app. No store and no account needed.</p>
+        <div class="install-row">
+          <button type="button" class="btn btn-dark" id="install-btn" hidden>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>
+            <span id="install-label">Install app</span>
+          </button>
+          <p class="install-hint" id="install-hint" role="status" aria-live="polite">In Chrome or Edge, use the install icon in the address bar, or open the browser menu and choose <strong>Install app</strong> or <strong>Add to Home screen</strong>. In Safari on a Mac, choose <strong>File &rsaquo; Add to Dock</strong>.</p>
+        </div>
+        <p class="store-note">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <span>Native apps for the App Store and Google Play are <strong>coming soon</strong>.</span>
+        </p>
+      </div>
+
+      <div class="ios-steps" id="ios-steps">
+        <h3>On iPhone or iPad</h3>
+        <ol>
+          <li>
+            <span class="ios-step-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M6 11H5v10h14V11h-1"/></svg></span>
+            <span>Open this page in Safari and tap <strong>Share</strong>.</span>
+          </li>
+          <li>
+            <span class="ios-step-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8"/><path d="M8 12h8"/></svg></span>
+            <span>Scroll down and choose <strong>Add to Home Screen</strong>.</span>
+          </li>
+          <li>
+            <span class="ios-step-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg></span>
+            <span>Tap <strong>Add</strong>. Folio appears on your home screen.</span>
+          </li>
+        </ol>
       </div>
     </div>
   </section>

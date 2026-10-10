@@ -19,6 +19,8 @@ Then visit http://localhost:8000.
 - `styles.css`: styles; colours and fonts are CSS variables at the top (`--accent` changes the brand colour)
 - `main.js`: converter demo (file picking, drag and drop, format selection). It does **not** upload or convert anything yet.
 
+Formats in the converter: from EPUB, MOBI, AZW3, PDF, DOCX, DOC or TXT; to EPUB, MOBI, AZW3, PDF, DOCX or DOC (Word output).
+
 ## Pricing and policy copy
 
 These figures were picked from competitor research (October 2026), not from a real business plan. Confirm each one before launch.
@@ -33,6 +35,18 @@ These figures were picked from competitor research (October 2026), not from a re
 | Company name | Folio Labs | Placeholder; replace with the legal entity |
 
 The deletion window, encryption and "never shared or sold" statements in the FAQ are promises to users. Make sure the product and the privacy policy actually do these things.
+
+## Install as a mobile app
+
+The site is a Progressive Web App, so visitors can install it from the browser. The "Folio on your phone" section (`#download`) shows an **Install app** button in Chrome, Edge and Android browsers, and Share → Add to Home Screen steps on iPhone and iPad. Native App Store and Google Play apps are listed as coming soon.
+
+- `manifest.webmanifest`: app name, colours and icons
+- `sw.js`: service worker. App shell files are cache-first, page loads are network-first with the cached page as the offline fallback, and Google Fonts are cached when available.
+- `icons/`: app icons (192 and 512 PNG, a maskable 512 PNG, an SVG and a 180 px `apple-touch-icon.png`)
+
+The service worker only registers over **https** or on **localhost** (for example `python -m http.server 8000`). Opening `index.html` directly from disk works, but nothing is cached and the page can't be installed.
+
+**After changing any app shell file**, bump `VERSION` at the top of `sw.js` (for example `'v1'` → `'v2'`). Returning visitors then download the new files, and the old cache is deleted. If you add a new file the page needs offline, also add it to the `SHELL` list.
 
 ## Deploy
 

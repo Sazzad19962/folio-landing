@@ -25,13 +25,22 @@
 
   const MAX_MB = 50; // Free plan limit, matches the pricing copy.
   const MAX_BYTES = MAX_MB * 1024 * 1024;
+  // Formats the demo accepts, matching the "From" list. An empty list means
+  // any MIME type is fine (browsers rarely know Kindle formats).
   const ACCEPTED = {
     PDF: ['application/pdf', 'application/x-pdf', 'application/acrobat'],
-    EPUB: ['application/epub+zip', 'application/epub']
+    EPUB: ['application/epub+zip', 'application/epub'],
+    MOBI: [],
+    AZW3: [],
+    DOCX: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+    DOC: ['application/msword'],
+    TXT: ['text/plain']
   };
+  const WORD = ['DOCX', 'DOC'];
+  const ACCEPT_LIST = 'PDF, EPUB, MOBI, AZW3, Word (DOCX, DOC) or TXT';
   // Browsers often report no MIME type (or a generic one) for ebooks.
   const GENERIC_MIME = ['', 'application/octet-stream', 'application/zip', 'application/x-zip-compressed'];
-  const OTHER_FORMATS = ['MOBI', 'AZW', 'AZW3', 'DOCX', 'DOC', 'TXT', 'CBZ', 'RTF', 'ODT'];
+  const OTHER_FORMATS = ['AZW', 'CBZ', 'RTF', 'ODT', 'PAGES'];
 
   let current = null; // the accepted File, or null
 
@@ -106,7 +115,7 @@
   // ---------- Drop zone setup ----------
 
   // Only PDF and EPUB are accepted in this preview.
-  input.setAttribute('accept', '.pdf,.epub,application/pdf,application/epub+zip');
+  input.setAttribute('accept', Object.keys(ACCEPTED).map(function (e) { return '.' + e.toLowerCase(); }).join(','));
   input.removeAttribute('multiple');
 
   const dropTitle = drop ? drop.querySelector('.dropzone-title') : null;
@@ -116,11 +125,11 @@
     // The drop zone is the single keyboard target; the hidden input is skipped.
     drop.setAttribute('tabindex', '0');
     drop.setAttribute('role', 'button');
-    drop.setAttribute('aria-label', 'Choose a PDF or EPUB file, or drag one here');
+    drop.setAttribute('aria-label', 'Choose a book or document, or drag one here');
     const hint = $('file-hint');
     if (hint) {
       // Keep the visible hint in line with what this preview accepts.
-      hint.textContent = 'PDF or EPUB. Free plan: up to ' + MAX_MB + ' MB per file.';
+      hint.textContent = ACCEPT_LIST + '. Free plan: up to ' + MAX_MB + ' MB per file.';
       drop.setAttribute('aria-describedby', 'file-hint');
     }
     input.setAttribute('tabindex', '-1');
@@ -186,7 +195,7 @@
     removeBtn.addEventListener('click', function () {
       const name = current ? current.name : 'File';
       clearFile();
-      setStatus(name + ' removed. Choose a PDF or EPUB, up to ' + MAX_MB + ' MB.');
+      setStatus(name + ' removed. Choose another file, up to ' + MAX_MB + ' MB.');
       if (drop) drop.focus();
     });
     fileRow.appendChild(removeBtn);
@@ -198,20 +207,21 @@
     const ext = extOf(file.name);
     const type = (file.type || '').toLowerCase();
 
-    if (ext !== 'PDF' && ext !== 'EPUB') {
+    if (!Object.prototype.hasOwnProperty.call(ACCEPTED, ext)) {
       if (OTHER_FORMATS.indexOf(ext) !== -1) {
-        return ext + ' files aren’t supported in this preview yet. Please choose a PDF or EPUB.';
+        return ext + ' files aren’t supported in this preview yet. Please choose ' + ACCEPT_LIST + '.';
       }
       if (!ext) {
-        return '“' + file.name + '” has no file extension, so we can’t tell what it is. Please choose a file ending in .pdf or .epub.';
+        return '“' + file.name + '” has no file extension, so we can’t tell what it is. Please choose ' + ACCEPT_LIST + '.';
       }
-      return '.' + ext.toLowerCase() + ' files can’t be converted. Please choose a PDF or EPUB.';
+      return '.' + ext.toLowerCase() + ' files can’t be converted. Please choose ' + ACCEPT_LIST + '.';
     }
 
-    const mimeOk = GENERIC_MIME.indexOf(type) !== -1 || ACCEPTED[ext].indexOf(type) !== -1;
+    const mimes = ACCEPTED[ext];
+    const mimeOk = !mimes.length || GENERIC_MIME.indexOf(type) !== -1 || mimes.indexOf(type) !== -1;
     if (!mimeOk) {
-      return '“' + file.name + '” is named like a' + (ext === 'EPUB' ? 'n EPUB' : ' PDF') +
-        ' but doesn’t look like one. Try exporting it again as a real ' + ext + '.';
+      return '“' + file.name + '” is named like a' + (/^[AEIOU]/.test(ext) ? 'n ' : ' ') + ext +
+        ' file but doesn’t look like one. Try exporting it again as a real ' + ext + '.';
     }
 
     if (file.size === 0) {
@@ -238,11 +248,11 @@
     const keep = current ? ' ' + current.name + ' is still selected.' : '';
 
     if (isFolder(source)) {
-      showError('That’s a folder. Please drop a single PDF or EPUB file.' + keep);
+      showError('That’s a folder. Please drop a single file.' + keep);
       return;
     }
     if (!files || files.length === 0) {
-      if (source && source.types) showError('That doesn’t look like a file. Please drop a PDF or EPUB.' + keep);
+      if (source && source.types) showError('That doesn’t look like a file. Please drop a book or document.' + keep);
       return;
     }
     if (files.length > 1) {
@@ -311,8 +321,8 @@
   // ---------- Format selection ----------
 
   function defaultTarget(source) {
-    if (source === 'PDF') return 'EPUB';
-    if (source === 'EPUB') return 'PDF';
+    // Ebooks and Word files go to PDF; everything else to EPUB.
+    if (source === 'EPUB' || WORD.indexOf(source) !== -1) return 'PDF';
     return hasOption(to, 'EPUB') ? 'EPUB' : (to && to.options[0] ? to.options[0].value : '');
   }
 
@@ -356,7 +366,7 @@
 
   function convert() {
     if (!current) {
-      setStatus('Choose a PDF or EPUB first. Drop it in the box above or press Enter on it to browse.', 'error');
+      setStatus('Choose a file first. Drop it in the box above or press Enter on it to browse.', 'error');
       if (drop) drop.focus();
       return;
     }
@@ -375,4 +385,70 @@
 
   // Replace any sample file shown in the markup with an honest empty state.
   clearFile();
+})();
+
+// Install as an app (PWA): service worker, install button and iOS steps.
+(function () {
+  const section = document.getElementById('download');
+  const btn = document.getElementById('install-btn');
+  const label = document.getElementById('install-label');
+  const hint = document.getElementById('install-hint');
+  let deferredPrompt = null;
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+    navigator.standalone === true;
+
+  function showInstalled() {
+    deferredPrompt = null;
+    btn.hidden = false;
+    btn.disabled = true;
+    label.textContent = 'Installed';
+    hint.textContent = 'Folio is installed on this device. Open it from your home screen or app list.';
+  }
+
+  if (isIOS) {
+    section.classList.add('is-ios');
+    hint.textContent = 'On iPhone and iPad, install Folio from Safari\u2019s Share menu. It takes three taps.';
+  }
+  if (isStandalone) showInstalled();
+
+  // Chrome, Edge and Android browsers fire this when the page is installable.
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    if (isStandalone) return;
+    deferredPrompt = e;
+    btn.hidden = false;
+    btn.disabled = false;
+    label.textContent = 'Install app';
+    hint.textContent = '';
+  });
+
+  btn.addEventListener('click', function () {
+    if (!deferredPrompt) return;
+    const promptEvent = deferredPrompt;
+    deferredPrompt = null;
+    promptEvent.prompt();
+    promptEvent.userChoice.then(function (choice) {
+      if (choice.outcome === 'accepted') {
+        showInstalled();
+      } else {
+        // The prompt can only be shown once; the browser may offer it again later.
+        btn.hidden = true;
+        hint.textContent = 'No problem. You can install Folio later from your browser menu.';
+      }
+    });
+  });
+
+  window.addEventListener('appinstalled', showInstalled);
+
+  // Service workers need a secure context: https, or http on localhost.
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function (err) {
+        console.warn('Folio: service worker registration failed', err);
+      });
+    });
+  }
 })();
