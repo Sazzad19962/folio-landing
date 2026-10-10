@@ -1,6 +1,6 @@
-// Front-end demo only: the converter UI reacts to file choice and format
-// selection, but no file leaves the browser and nothing is converted.
-// Wire `convert()` to your backend when the service is live.
+// Converter: validates the chosen file, uploads it to the conversion API,
+// follows the job until it is done and offers the result for download.
+// The API base comes from <meta name="folio-api"> (empty = same origin).
 (function () {
   'use strict';
 
@@ -20,12 +20,12 @@
   const yearEl = $('year');
   if (yearEl) yearEl.textContent = new Date().getFullYear();
 
-  // Without the form and the file input there is no demo to run.
+  // Without the form and the file input there is no converter to run.
   if (!form || !input) return;
 
   const MAX_MB = 50; // Free plan limit, matches the pricing copy.
   const MAX_BYTES = MAX_MB * 1024 * 1024;
-  // Formats the demo accepts, matching the "From" list. An empty list means
+  // Formats the converter accepts, matching the "From" list. An empty list means
   // any MIME type is fine (browsers rarely know Kindle formats).
   const ACCEPTED = {
     PDF: ['application/pdf', 'application/x-pdf', 'application/acrobat'],
@@ -43,6 +43,17 @@
   const OTHER_FORMATS = ['AZW', 'CBZ', 'RTF', 'ODT', 'PAGES'];
 
   let current = null; // the accepted File, or null
+
+  // Conversion API. Strip a trailing slash so paths can be appended.
+  const apiMeta = document.querySelector('meta[name="folio-api"]');
+  const API_BASE = ((apiMeta && apiMeta.getAttribute('content')) || '').trim().replace(/\/+$/, '');
+
+  // Conversion run state. `runId` invalidates callbacks from an older run.
+  let busy = false;
+  let runId = 0;
+  let activeXhr = null;
+  let pollTimer = null;
+  let wakeTimer = null;
 
   // ---------- Helpers ----------
 
@@ -114,7 +125,7 @@
 
   // ---------- Drop zone setup ----------
 
-  // Only PDF and EPUB are accepted in this preview.
+  // Only the supported formats show up in the file picker.
   input.setAttribute('accept', Object.keys(ACCEPTED).map(function (e) { return '.' + e.toLowerCase(); }).join(','));
   input.removeAttribute('multiple');
 
@@ -128,13 +139,15 @@
     drop.setAttribute('aria-label', 'Choose a book or document, or drag one here');
     const hint = $('file-hint');
     if (hint) {
-      // Keep the visible hint in line with what this preview accepts.
+      // Keep the visible hint in line with what the converter accepts.
       hint.textContent = ACCEPT_LIST + '. Free plan: up to ' + MAX_MB + ' MB per file.';
       drop.setAttribute('aria-describedby', 'file-hint');
     }
     input.setAttribute('tabindex', '-1');
 
     drop.addEventListener('click', function (e) {
+      // While converting, the drop zone (and its label) does nothing.
+      if (busy) { e.preventDefault(); return; }
       // Clicks on the <label> already open the picker via the input.
       if (e.target === input || (e.target.closest && e.target.closest('label'))) return;
       input.click();
@@ -142,7 +155,7 @@
     drop.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
         e.preventDefault();
-        input.click();
+        if (!busy) input.click();
       }
     });
 
@@ -153,12 +166,13 @@
     }
     drop.addEventListener('dragenter', function (e) {
       e.preventDefault();
+      if (busy) return;
       depth++;
       setOver(true);
     });
     drop.addEventListener('dragover', function (e) {
       e.preventDefault();
-      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+      if (e.dataTransfer) e.dataTransfer.dropEffect = busy ? 'none' : 'copy';
     });
     drop.addEventListener('dragleave', function () {
       depth = Math.max(0, depth - 1);
@@ -168,6 +182,7 @@
       e.preventDefault();
       depth = 0;
       setOver(false);
+      if (busy) return;
       handleFiles(e.dataTransfer);
     });
   }
@@ -209,7 +224,7 @@
 
     if (!Object.prototype.hasOwnProperty.call(ACCEPTED, ext)) {
       if (OTHER_FORMATS.indexOf(ext) !== -1) {
-        return ext + ' files aren’t supported in this preview yet. Please choose ' + ACCEPT_LIST + '.';
+        return ext + ' files aren’t supported yet. Please choose ' + ACCEPT_LIST + '.';
       }
       if (!ext) {
         return '“' + file.name + '” has no file extension, so we can’t tell what it is. Please choose ' + ACCEPT_LIST + '.';
@@ -244,6 +259,7 @@
   }
 
   function handleFiles(source) {
+    if (busy) return;
     const files = source && source.files;
     const keep = current ? ' ' + current.name + ' is still selected.' : '';
 
@@ -279,6 +295,8 @@
   // ---------- File state ----------
 
   function setFile(file) {
+    stopRun();
+    hideResult();
     current = file;
     const ext = extOf(file.name);
 
@@ -301,6 +319,8 @@
   }
 
   function clearFile() {
+    stopRun();
+    hideResult();
     current = null;
     input.value = '';
     input.removeAttribute('aria-invalid');
@@ -348,7 +368,7 @@
   }
 
   function updateButton() {
-    if (btn && to) btn.textContent = 'Convert to ' + to.value;
+    if (btn && to && !busy) btn.textContent = 'Convert to ' + to.value;
   }
 
   if (from) from.addEventListener('change', function () { syncTargets(true); });
@@ -362,18 +382,338 @@
     handleFiles(input);
   });
 
-  // ---------- Convert (preview) ----------
+  // ---------- Convert ----------
+
+  const UPLOAD_SHARE = 30;      // upload fills 0–30% of the bar, conversion 30–100%
+  const WAKE_AFTER_MS = 8000;   // free hosting sleeps; say so if nothing happens for this long
+  const POLL_FAST_MS = 1000;
+  const POLL_SLOW_MS = 2000;
+  const SLOW_AFTER_MS = 30000;
+  const MAX_POLL_FAILURES = 5;  // consecutive network failures tolerated while polling
+
+  const MSG_UNREACHABLE = 'We couldn’t reach the converter. Check your connection and try again.';
+  const MSG_GENERIC = 'Something went wrong on our side and the file wasn’t converted. Please try again in a moment.';
+  const MSG_WAKING = 'Waking up the converter. The first conversion after a quiet spell can take up to a minute.';
+
+  function apiUrl(path) { return API_BASE + path; }
+
+  // downloadUrl is relative to the API ("/api/jobs/<id>/download").
+  function absoluteDownload(url) {
+    if (!url) return '';
+    if (/^https?:\/\//i.test(url)) return url;
+    return API_BASE + (url.charAt(0) === '/' ? url : '/' + url);
+  }
+
+  function parseJson(text) {
+    if (!text) return null;
+    try {
+      const data = JSON.parse(text);
+      return data && typeof data === 'object' ? data : null;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  // A friendly sentence from an API error body, or the generic message.
+  function errorText(data) {
+    return data && typeof data.error === 'string' && data.error.trim() ? data.error.trim() : MSG_GENERIC;
+  }
+
+  function clamp(n) { return Math.max(0, Math.min(100, Number(n) || 0)); }
+
+  // ---- Busy state ----
+
+  function setBusy(on) {
+    busy = on;
+    form.setAttribute('aria-busy', on ? 'true' : 'false');
+    if (btn) {
+      btn.disabled = on;
+      if (on) btn.textContent = 'Converting…';
+    }
+    if (from) from.disabled = on || !!current; // the source format stays locked to the file
+    if (to) to.disabled = on;
+    if (removeBtn) removeBtn.disabled = on;
+    input.disabled = on;
+    if (drop) {
+      if (on) drop.setAttribute('aria-disabled', 'true');
+      else drop.removeAttribute('aria-disabled');
+    }
+    if (!on) updateButton();
+  }
+
+  // Cancels any upload, poll or timer from the current run.
+  function stopRun() {
+    runId++;
+    if (activeXhr) {
+      const xhr = activeXhr;
+      activeXhr = null;
+      try { xhr.abort(); } catch (err) { /* already finished */ }
+    }
+    clearTimeout(pollTimer);
+    clearTimeout(wakeTimer);
+    pollTimer = null;
+    wakeTimer = null;
+    if (busy) setBusy(false);
+  }
+
+  // Shows the "waking up" note if neither progress nor a response arrives in time.
+  function armWakeTimer(id) {
+    clearTimeout(wakeTimer);
+    wakeTimer = setTimeout(function () {
+      if (id === runId && busy) setStatus(MSG_WAKING);
+    }, WAKE_AFTER_MS);
+  }
+
+  function fail(id, message) {
+    if (id !== runId) return;
+    stopRun();
+    setProgress(0);
+    setStatus(message, 'error');
+  }
+
+  // ---- Result area: download link and "Delete now" ----
+
+  let resultEl = null;
+  let downloadLink = null;
+  let deleteBtn = null;
+  let resultJobId = null;
+
+  function ensureResult() {
+    if (resultEl) return resultEl;
+    resultEl = document.createElement('div');
+    resultEl.className = 'convert-result';
+    resultEl.hidden = true;
+
+    downloadLink = document.createElement('a');
+    downloadLink.className = 'btn btn-dark';
+
+    deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'file-remove';
+    deleteBtn.textContent = 'Delete now';
+    deleteBtn.addEventListener('click', deleteNow);
+
+    resultEl.appendChild(downloadLink);
+    resultEl.appendChild(deleteBtn);
+
+    if (fileRow && fileRow.parentNode) fileRow.parentNode.insertBefore(resultEl, fileRow.nextSibling);
+    else form.insertBefore(resultEl, btn || null);
+    return resultEl;
+  }
+
+  function showResult(job, outputName) {
+    ensureResult();
+    resultJobId = job.id;
+    downloadLink.href = absoluteDownload(job.downloadUrl || '/api/jobs/' + encodeURIComponent(job.id) + '/download');
+    downloadLink.setAttribute('download', outputName);
+    downloadLink.textContent = 'Download ' + outputName;
+    deleteBtn.disabled = false;
+    deleteBtn.textContent = 'Delete now';
+    resultEl.hidden = false;
+    downloadLink.focus();
+  }
+
+  function hideResult() {
+    resultJobId = null;
+    if (resultEl) resultEl.hidden = true;
+  }
+
+  function deleteNow() {
+    const jobId = resultJobId;
+    if (!jobId || !deleteBtn) return;
+    deleteBtn.disabled = true;
+    deleteBtn.textContent = 'Deleting…';
+
+    function restore() {
+      deleteBtn.disabled = false;
+      deleteBtn.textContent = 'Delete now';
+    }
+
+    fetch(apiUrl('/api/jobs/' + encodeURIComponent(jobId)), { method: 'DELETE', cache: 'no-store' })
+      .then(function (res) {
+        if (resultJobId !== jobId) return; // the user moved on meanwhile
+        // 404 means it is already gone, which is what the user wanted.
+        if (res.ok || res.status === 404) {
+          hideResult();
+          setProgress(0);
+          setStatus('Deleted from our servers.', 'ok');
+          if (btn) btn.focus();
+          return;
+        }
+        return res.text().then(function (text) {
+          restore();
+          setStatus(errorText(parseJson(text)), 'error');
+        });
+      })
+      .catch(function () {
+        if (resultJobId !== jobId) return;
+        restore();
+        setStatus(MSG_UNREACHABLE, 'error');
+      });
+  }
+
+  // ---- Upload ----
 
   function convert() {
+    if (busy) return;
     if (!current) {
       setStatus('Choose a file first. Drop it in the box above or press Enter on it to browse.', 'error');
       if (drop) drop.focus();
       return;
     }
-    // Honest preview: nothing is uploaded and no output file is created.
-    setProgress(0);
-    setStatus('Online conversion is coming soon. This page is a preview, so ' + current.name +
-      ' wasn’t uploaded or converted, and it never left your device.', 'normal');
+    if (typeof XMLHttpRequest === 'undefined' || typeof FormData === 'undefined') {
+      setStatus('This browser can’t upload files. Please try a current version of Chrome, Edge, Firefox or Safari.', 'error');
+      return;
+    }
+
+    stopRun();
+    hideResult();
+    const id = runId;
+    const target = to ? to.value : '';
+    const file = current;
+
+    setBusy(true);
+    setProgress(1);
+    setStatus('Uploading… 0%');
+    armWakeTimer(id);
+
+    const data = new FormData();
+    data.append('to', target); // the API reads `to` before the file streams in
+    data.append('file', file, file.name);
+
+    const xhr = new XMLHttpRequest();
+    activeXhr = xhr;
+    xhr.open('POST', apiUrl('/api/convert'));
+    xhr.setRequestHeader('Accept', 'application/json');
+
+    if (xhr.upload) {
+      xhr.upload.addEventListener('progress', function (e) {
+        if (id !== runId || !e.lengthComputable || !e.total) return;
+        const pct = Math.round((e.loaded / e.total) * 100);
+        setProgress(Math.max(1, (pct * UPLOAD_SHARE) / 100));
+        setStatus('Uploading… ' + pct + '%');
+        armWakeTimer(id);
+      });
+      xhr.upload.addEventListener('load', function () {
+        if (id !== runId) return;
+        setProgress(UPLOAD_SHARE);
+        setStatus('Uploaded. Starting the conversion…');
+        armWakeTimer(id);
+      });
+    }
+
+    xhr.addEventListener('load', function () {
+      if (id !== runId) return;
+      activeXhr = null;
+      const body = parseJson(xhr.responseText);
+      if (xhr.status === 202 || (xhr.status >= 200 && xhr.status < 300)) {
+        if (body && body.id) {
+          setProgress(UPLOAD_SHARE);
+          handleJob(id, body, target, file.name);
+          if (id === runId && busy) startPolling(id, body.id, target, file.name);
+          return;
+        }
+        fail(id, MSG_GENERIC);
+        return;
+      }
+      // A plain static host (no API behind it) answers with an HTML 404/405/501.
+      if (!body && (xhr.status === 0 || xhr.status === 404 || xhr.status === 405 || xhr.status === 501)) {
+        fail(id, MSG_UNREACHABLE);
+        return;
+      }
+      fail(id, errorText(body));
+    });
+    xhr.addEventListener('error', function () { fail(id, MSG_UNREACHABLE); });
+    xhr.addEventListener('timeout', function () { fail(id, MSG_UNREACHABLE); });
+
+    try {
+      xhr.send(data);
+    } catch (err) {
+      fail(id, MSG_UNREACHABLE);
+    }
+  }
+
+  // ---- Job status ----
+
+  function outputNameFor(job, target, sourceName) {
+    if (job.outputName) return String(job.outputName);
+    const dot = sourceName.lastIndexOf('.');
+    return (dot > 0 ? sourceName.slice(0, dot) : sourceName) + '.' + target.toLowerCase();
+  }
+
+  // Updates the UI from a job object; finishes the run on done or error.
+  function handleJob(id, job, target, sourceName) {
+    if (id !== runId) return;
+    const status = job.status;
+
+    if (status === 'queued') {
+      const ahead = Number(job.position);
+      setProgress(UPLOAD_SHARE);
+      setStatus(ahead > 0 ? 'Waiting in line (' + ahead + ' ahead)…' : 'Waiting in line…');
+    } else if (status === 'converting') {
+      const pct = Math.round(clamp(job.progress));
+      setProgress(UPLOAD_SHARE + (pct * (100 - UPLOAD_SHARE)) / 100);
+      setStatus('Converting to ' + target + '… ' + pct + '%');
+    } else if (status === 'done') {
+      const name = outputNameFor(job, target, sourceName);
+      stopRun();
+      setProgress(100);
+      setStatus('Done. ' + name + ' is ready. It’s deleted from our servers automatically after 2 hours.', 'ok');
+      showResult(job, name);
+    } else if (status === 'error') {
+      fail(id, errorText(job));
+    }
+  }
+
+  function startPolling(id, jobId, target, sourceName) {
+    const startedAt = Date.now();
+    let failures = 0;
+
+    function schedule() {
+      if (id !== runId) return;
+      const delay = Date.now() - startedAt < SLOW_AFTER_MS ? POLL_FAST_MS : POLL_SLOW_MS;
+      pollTimer = setTimeout(poll, delay);
+    }
+
+    // Network trouble (or a sleeping/restarting server) is retried a few times.
+    function transient(message) {
+      failures++;
+      if (failures > MAX_POLL_FAILURES) fail(id, message || MSG_UNREACHABLE);
+      else schedule();
+    }
+
+    function poll() {
+      if (id !== runId) return;
+      fetch(apiUrl('/api/jobs/' + encodeURIComponent(jobId)), {
+        cache: 'no-store',
+        headers: { Accept: 'application/json' }
+      })
+        .then(function (res) {
+          return res.text().then(function (text) { return { res: res, body: parseJson(text) }; });
+        })
+        .then(function (r) {
+          if (id !== runId) return;
+          if (r.res.ok && r.body && r.body.status) {
+            failures = 0;
+            armWakeTimer(id);
+            handleJob(id, r.body, target, sourceName);
+            if (id === runId && busy) schedule();
+            return;
+          }
+          if (r.res.status >= 500 || (r.res.ok && !r.body)) {
+            transient(r.body ? errorText(r.body) : MSG_GENERIC);
+            return;
+          }
+          // 404 (expired or unknown job) and other client errors end the run.
+          fail(id, errorText(r.body));
+        })
+        .catch(function () {
+          if (id !== runId) return;
+          transient();
+        });
+    }
+
+    schedule();
   }
 
   form.addEventListener('submit', function (e) {

@@ -1,6 +1,6 @@
 // Folio service worker. Bump VERSION whenever any app-shell file changes so
 // visitors get the new files; old caches are deleted on activate.
-const VERSION = 'v2';
+const VERSION = 'v3';
 const SHELL_CACHE = 'folio-shell-' + VERSION;
 const FONT_CACHE = 'folio-fonts-' + VERSION;
 
@@ -91,10 +91,15 @@ self.addEventListener('fetch', function (event) {
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
 
+  // Never touch the conversion API (uploads, job status, downloads): it must
+  // always hit the network, and its responses must never be cached.
+  if (url.pathname.indexOf('/api/') !== -1) return;
+
   if (FONT_HOSTS.indexOf(url.hostname) !== -1) {
     event.respondWith(staleWhileRevalidate(request));
     return;
   }
+  // Any other origin (e.g. an API hosted elsewhere) goes straight to the network.
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === 'navigate') {
