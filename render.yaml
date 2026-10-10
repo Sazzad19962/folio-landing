@@ -1,0 +1,43 @@
+# Render Blueprint for Folio: one Docker web service that serves the static
+# site and the conversion API (Calibre + LibreOffice) from the same origin.
+#
+# Free plan caveats:
+#   - 512 MB RAM and a shared CPU. Conversions run one at a time
+#     (CONCURRENCY=1) so the instance doesn't run out of memory.
+#   - The service sleeps after ~15 minutes without traffic. The first request
+#     after that wakes it up and can take about a minute.
+#   - Large or image-heavy PDFs can exceed 512 MB or the timeout; move to a
+#     paid plan (Starter or above) if conversions fail on big files.
+#   - The filesystem is ephemeral, which is fine: files are deleted after
+#     RETENTION_MIN minutes anyway.
+services:
+  - type: web
+    name: folio
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: MAX_FILE_MB
+        value: "50"
+      - key: RETENTION_MIN
+        value: "120"
+      - key: CONVERT_TIMEOUT_S
+        value: "300"
+      - key: CONCURRENCY
+        value: "1"
+      - key: MAX_QUEUE
+        value: "20"
+      - key: RATE_LIMIT_PER_HOUR
+        value: "30"
+      - key: TRUST_PROXY
+        value: "1"
+      # Only needed when the static site is hosted somewhere else (comma
+      # separated, e.g. https://folio.example.com). Set it in the dashboard.
+      - key: ALLOWED_ORIGINS
+        sync: false
