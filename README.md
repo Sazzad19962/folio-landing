@@ -17,9 +17,10 @@ Then visit http://localhost:8000.
 
 - `index.html`: page markup
 - `styles.css`: styles; colours and fonts are CSS variables at the top (`--accent` changes the brand colour)
-- `main.js`: converter demo (file picking, drag and drop, format selection). It does **not** upload or convert anything yet.
-
-Formats in the converter: from EPUB, MOBI, AZW3, PDF, DOCX, DOC or TXT; to EPUB, MOBI, AZW3, PDF, DOCX or DOC (Word output).
+- `main.js`: the landing page's converter card (a demo: file picking, drag and drop, format selection). The "Convert a file free" buttons open the real converter below.
+- `converter/index.html`: **the working converter**. One self-contained page that converts PDF, EPUB, DOCX, Markdown, HTML and TXT entirely in the browser; nothing is uploaded. PDF → Word keeps bold, italic, underline, colours, fonts, alignment, indents, lists, images, simple tables and page breaks. Libraries load from cdnjs/jsDelivr (pdf.js, JSZip, jsPDF, and pdf-lib + fontkit for Bangla PDFs).
+- `converter/fonts/`: Noto Serif Bengali and Noto Sans Bengali (SIL Open Font License, see `OFL.txt`), loaded only when saving a Bangla PDF.
+- `android/`: native Android app (Kotlin, Jetpack Compose) that converts PDF, EPUB, DOCX and TXT on the device. See "Android app" below.
 
 ## Pricing and policy copy
 
@@ -47,6 +48,17 @@ The site is a Progressive Web App, so visitors can install it from the browser. 
 The service worker only registers over **https** or on **localhost** (for example `python -m http.server 8000`). Opening `index.html` directly from disk works, but nothing is cached and the page can't be installed.
 
 **After changing any app shell file**, bump `VERSION` at the top of `sw.js` (for example `'v1'` → `'v2'`). Returning visitors then download the new files, and the old cache is deleted. If you add a new file the page needs offline, also add it to the `SHELL` list.
+
+## Android app
+
+Open `android/` in Android Studio, or build from the command line (JDK 17 and the Android SDK, API 36):
+
+```bash
+cd android
+./gradlew testDebugUnitTest assembleDebug
+```
+
+The debug APK lands in `android/app/build/outputs/apk/debug/`. For Google Play, build the bundle with `./gradlew bundleRelease`. Release signing reads `android/keystore.properties` (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`), which is git-ignored along with `*.jks` keystores; never commit them. The app ID `com.foliolabs.folio` can't be changed after the first Play upload.
 
 ## Deploy
 

@@ -1,0 +1,2609 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Convert PDF, EPUB, Word, Markdown, HTML and text files in your browser. Nothing is uploaded.">
+<link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+<title>Folio Converter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&family=Literata:opsz,wght@7..72,400;7..72,600&family=Noto+Sans+Bengali:wght@600&family=Noto+Serif+Bengali:wght@400&display=swap">
+<style>
+/* Layout: brand bar, short intro, then a two-pane workbench (converter | what was read), then a format matrix. */
+:root {
+  --bg: #F3F4F0;
+  --surface: #FFFFFF;
+  --surface-2: #F7F8F4;
+  --ink: #10151F;
+  --muted: #4A5260;
+  --line: #D9DCD3;
+  --line-strong: #AEB4A8;
+  --accent: #2B4EFF;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #E6EAFF;
+  --danger-bg: #FBE4E2;
+  --danger-fg: #7A1B14;
+  --ok: #1D7A4C;
+  --mark: #FFE08A;
+  --display: "Bricolage Grotesque", "Noto Sans Bengali", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Noto Sans Bengali", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+  --read: "Literata", "Noto Serif Bengali", Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E131C; --surface: #161C27; --surface-2: #1B2230; --ink: #EEF0EA; --muted: #A3AAB6;
+    --line: #2A3240; --line-strong: #46505F; --accent: #8197FF; --accent-ink: #0E131C; --accent-soft: #222B4A;
+    --danger-bg: #3A1714; --danger-fg: #FFC9C2; --ok: #5FD39A; --mark: #5A4A12;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E131C; --surface: #161C27; --surface-2: #1B2230; --ink: #EEF0EA; --muted: #A3AAB6;
+  --line: #2A3240; --line-strong: #46505F; --accent: #8197FF; --accent-ink: #0E131C; --accent-soft: #222B4A;
+  --danger-bg: #3A1714; --danger-fg: #FFC9C2; --ok: #5FD39A; --mark: #5A4A12;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 20px; }
+h1, h2, h3 { text-wrap: balance; }
+a { color: var(--accent); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Top bar */
+.top { border-bottom: 1px solid var(--line); }
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-block: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 800; font-size: 21px; letter-spacing: -0.02em; }
+.mark { width: 32px; height: 32px; border-radius: 8px; background: var(--ink); display: grid; place-items: center; }
+.mark svg { stroke: var(--bg); }
+.pill { font-family: var(--mono); font-size: 12.5px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--muted); }
+
+/* Intro */
+.intro { padding-block: 36px 24px; display: grid; gap: 10px; }
+.intro h1 { margin: 0; font-family: var(--display); font-weight: 800; font-size: clamp(32px, 4.6vw, 52px); line-height: 1.02; letter-spacing: -0.035em; max-width: 18ch; }
+.intro p { margin: 0; color: var(--muted); font-size: 18px; max-width: 60ch; }
+
+/* Workbench */
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 22px; min-width: 0; }
+.tool { display: grid; gap: 18px; }
+
+.drop { border: 2px dashed var(--line-strong); border-radius: 16px; background: var(--surface-2); padding: 28px 18px; display: grid; justify-items: center; gap: 8px; text-align: center; transition: border-color .15s, background .15s; }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop svg { stroke: var(--ink); }
+.drop-title { font-weight: 600; font-size: 17px; }
+.drop-hint { font-size: 14px; color: var(--muted); }
+.formats-line { font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: 0.02em; }
+
+.btn { font: inherit; font-weight: 600; border-radius: 12px; border: 1.5px solid transparent; min-height: 44px; padding: 10px 18px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-primary { background: var(--ink); color: var(--bg); }
+.btn-accent { background: var(--accent); color: var(--accent-ink); }
+.btn-ghost { background: transparent; color: var(--ink); border-color: var(--line-strong); }
+.btn-text { background: transparent; color: var(--accent); padding-inline: 8px; }
+.btn-lg { min-height: 54px; font-size: 17px; width: 100%; border-radius: 14px; }
+
+.filerow { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); }
+.badge { flex: none; width: 42px; height: 52px; border-radius: 6px; background: var(--ink); color: var(--bg); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; font-family: var(--mono); font-size: 10px; text-transform: uppercase; }
+.file-meta { flex: 1 1 auto; min-width: 0; }
+.file-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-sub { font-size: 13px; color: var(--muted); }
+.tag { font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--mark); color: var(--ink); margin-left: 6px; }
+
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+legend, .label { font-size: 14px; color: var(--muted); margin-bottom: 8px; padding: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { position: relative; }
+.chip input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.chip span { display: inline-flex; align-items: center; min-height: 40px; padding: 8px 16px; border-radius: 999px; border: 1.5px solid var(--line-strong); font-weight: 600; font-size: 15px; }
+.chip input:checked + span { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.chip input:disabled + span { opacity: .35; text-decoration: line-through; }
+.chip input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.field { display: grid; gap: 6px; min-width: 0; }
+.field label { font-size: 14px; color: var(--muted); }
+.field input, .field select { font: inherit; font-size: 15px; color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px; padding: 10px 12px; min-height: 44px; width: 100%; }
+
+.progress { display: grid; gap: 8px; }
+.track { height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.track span { display: block; height: 100%; width: 35%; background: var(--accent); border-radius: 999px; animation: slide 1.1s ease-in-out infinite; }
+@keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+@media (prefers-reduced-motion: reduce) { .track span { animation: none; width: 100%; opacity: .5; } }
+.status { margin: 0; font-size: 14px; color: var(--muted); }
+
+.alert { background: var(--danger-bg); color: var(--danger-fg); border-radius: 12px; padding: 12px 14px; font-size: 15px; }
+.result { border: 1.5px solid var(--ok); border-radius: 16px; padding: 16px; display: grid; gap: 14px; }
+.result-head { display: flex; gap: 12px; align-items: center; }
+.ok-dot { flex: none; width: 38px; height: 38px; border-radius: 999px; background: var(--ok); display: grid; place-items: center; }
+.ok-dot svg { stroke: var(--surface); }
+.result-title { font-weight: 600; }
+.result-sub { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.result-note { font-size: 13.5px; color: var(--muted); margin: 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* Preview */
+.preview { display: grid; gap: 16px; }
+.pv-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 16px; }
+.pv-head h2 { margin: 0; font-family: var(--display); font-size: 22px; letter-spacing: -0.02em; }
+.stats { display: flex; flex-wrap: wrap; gap: 6px 14px; font-family: var(--mono); font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.stats b { color: var(--ink); font-weight: 500; }
+.outline { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding-block: 10px; }
+.outline ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; max-height: 150px; overflow: auto; font-size: 14px; }
+.outline li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.outline .l2 { padding-left: 14px; color: var(--muted); }
+.outline .l3 { padding-left: 28px; color: var(--muted); font-size: 13px; }
+.outline .empty { color: var(--muted); }
+.reader { font-family: var(--read); font-size: 16.5px; line-height: 1.7; max-height: 560px; overflow: auto; padding-right: 8px; overflow-wrap: anywhere; }
+.reader .r-title { font-family: var(--display); font-size: 26px; line-height: 1.1; letter-spacing: -0.02em; margin: 0 0 4px; }
+.reader .r-author { color: var(--muted); margin: 0 0 18px; font-family: var(--body); }
+.reader h3 { font-family: var(--display); letter-spacing: -0.01em; line-height: 1.2; margin: 1.3em 0 .4em; }
+.reader h3.l1 { font-size: 21px; } .reader h3.l2 { font-size: 18px; } .reader h3.l3 { font-size: 16px; }
+.reader p { margin: 0 0 .8em; max-width: 65ch; }
+.reader .more { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.reader .r-li { position: relative; margin-bottom: .3em; }
+.reader .r-marker { position: absolute; left: -1.3em; width: 1.1em; text-align: right; color: var(--muted); }
+.reader .r-img { margin: .6em 0 1em; }
+.reader .r-img img { max-width: 100%; height: auto; border-radius: 4px; }
+.reader .r-table { overflow-x: auto; margin: .4em 0 1em; }
+.reader .r-table table { min-width: 0; width: auto; font-family: var(--body); font-size: 14.5px; border: 1px solid var(--line-strong); }
+.reader .r-table td { border: 1px solid var(--line-strong); padding: 6px 10px; }
+.reader a { color: var(--accent); }
+.check { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 15px; }
+.check input { width: 20px; height: 20px; accent-color: var(--accent); margin: 0; }
+.placeholder { color: var(--muted); font-family: var(--body); }
+
+/* Matrix + limits */
+.below { padding-block: 40px 56px; display: grid; gap: 28px; }
+.below h2 { margin: 0 0 12px; font-family: var(--display); font-size: 24px; letter-spacing: -0.02em; }
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 15px; }
+th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font-size: 13px; color: var(--muted); font-weight: 500; }
+td.fmt { font-family: var(--mono); font-weight: 500; }
+.yes { color: var(--ok); font-weight: 600; }
+.limits { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 0; padding: 0; list-style: none; }
+.limits li { border-top: 2px solid var(--ink); padding-top: 10px; }
+.limits strong { display: block; margin-bottom: 4px; }
+.limits span { color: var(--muted); font-size: 15px; }
+footer { border-top: 1px solid var(--line); }
+footer .wrap { padding-block: 22px; font-size: 14px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; }
+
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-size: 14px; max-width: calc(100% - 32px); box-shadow: 0 10px 30px -10px rgba(0,0,0,.4); }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap bar">
+    <div class="brand">
+      <span class="mark"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h9l7 7v9H4z"/><path d="M13 4v7h7"/></svg></span>
+      Folio
+    </div>
+    <span class="pill">Runs in your browser · nothing is uploaded</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="intro">
+    <h1>Convert documents without uploading them.</h1>
+    <p>Turn PDFs into reflowable ebooks, ebooks into Word files, or notes into a tidy PDF. Folio reads the text and headings on your device and writes the format you pick.</p>
+  </section>
+
+  <div class="grid">
+    <section class="panel tool" aria-label="Converter">
+      <div id="drop" class="drop">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+        <div class="drop-title">Drop a file here</div>
+        <button type="button" id="choose" class="btn btn-ghost">Choose a file</button>
+        <div class="formats-line">PDF · EPUB · DOCX · MD · HTML · TXT</div>
+        <input id="file" class="sr-only" type="file" accept=".pdf,.epub,.docx,.txt,.md,.markdown,.html,.htm,.xhtml,application/pdf,application/epub+zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/html" tabindex="-1">
+      </div>
+
+      <div id="filerow" class="filerow" hidden>
+        <div id="badge" class="badge">md</div>
+        <div class="file-meta">
+          <div class="file-name"><span id="fname">sample</span><span id="sampletag" class="tag" hidden>Sample</span></div>
+          <div id="fsub" class="file-sub"></div>
+        </div>
+        <button type="button" id="change" class="btn btn-text">Change</button>
+      </div>
+
+      <fieldset>
+        <legend>Convert to</legend>
+        <div class="chips" id="targets"></div>
+      </fieldset>
+
+      <div class="fields">
+        <div class="field"><label for="title">Title</label><input id="title" type="text" autocomplete="off"></div>
+        <div class="field"><label for="author">Author</label><input id="author" type="text" autocomplete="off" placeholder="Optional"></div>
+        <div class="field" id="pagesize-field" hidden>
+          <label for="pagesize">PDF page size</label>
+          <select id="pagesize"><option value="a4">A4</option><option value="a5">A5 (book)</option><option value="letter">US Letter</option></select>
+        </div>
+        <label class="check" id="breaks-field" for="breaks" hidden><input type="checkbox" id="breaks" checked>Start new pages where the PDF does</label>
+      </div>
+
+      <button type="button" id="go" class="btn btn-primary btn-lg" disabled>Convert</button>
+
+      <div id="progress" class="progress" hidden>
+        <div class="track"><span></span></div>
+        <p id="status" class="status" aria-live="polite"></p>
+      </div>
+
+      <div id="error" class="alert" role="alert" hidden></div>
+
+      <div id="result" class="result" hidden>
+        <div class="result-head">
+          <span class="ok-dot"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg></span>
+          <div>
+            <div id="rtitle" class="result-title">Ready</div>
+            <div id="rsub" class="result-sub"></div>
+          </div>
+        </div>
+        <p id="rnote" class="result-note" hidden></p>
+        <div class="actions">
+          <button type="button" id="download" class="btn btn-accent">Download</button>
+          <button type="button" id="another" class="btn btn-ghost">Choose another file</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel preview" aria-labelledby="pv-h">
+      <div class="pv-head">
+        <h2 id="pv-h">What Folio read</h2>
+        <div id="stats" class="stats"></div>
+      </div>
+      <nav class="outline" aria-label="Document outline"><ol id="outline"></ol></nav>
+      <article id="reader" class="reader"><p class="placeholder">Choose a file to see its text here before you convert it.</p></article>
+    </section>
+  </div>
+
+  <div class="below">
+    <section aria-labelledby="matrix-h">
+      <h2 id="matrix-h">Formats</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Format</th><th scope="col">Open</th><th scope="col">Save as</th><th scope="col">What carries over</th></tr></thead>
+          <tbody>
+            <tr><td class="fmt">PDF</td><td class="yes">Yes</td><td class="yes">Yes</td><td>Bold, italic, underline, strikethrough, colours, fonts and sizes; alignment, indents and spacing; headings, lists, links, images and simple tables. Saved PDFs get a title page, page numbers and bookmarks.</td></tr>
+            <tr><td class="fmt">EPUB</td><td class="yes">Yes</td><td class="yes">Yes</td><td>Chapters, headings, title and author. Saved EPUBs work in Apple Books, Google Play Books, Kobo and Send to Kindle.</td></tr>
+            <tr><td class="fmt">DOCX</td><td class="yes">Yes</td><td class="yes">Yes</td><td>Saved Word files keep the formatting read from PDFs: bold, underline, colours, fonts, alignment, indents, real bullet and numbered lists, images, tables, page size and page breaks. Opens in Word, Google Docs and LibreOffice.</td></tr>
+            <tr><td class="fmt">Markdown</td><td class="yes">Yes</td><td class="yes">Yes</td><td>Headings and paragraphs; links and emphasis become plain text.</td></tr>
+            <tr><td class="fmt">HTML</td><td class="yes">Yes</td><td class="yes">Yes</td><td>Headings, paragraphs and list items. Saved HTML is a single styled page.</td></tr>
+            <tr><td class="fmt">TXT</td><td class="yes">Yes</td><td class="yes">Yes</td><td>Paragraphs split on blank lines; hard-wrapped lines are joined so text can reflow.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section aria-labelledby="limits-h">
+      <h2 id="limits-h">Good to know</h2>
+      <ul class="limits">
+        <li><strong>Formatting, not exact positions</strong><span>PDF to Word keeps bold, alignment, lists, images and simple tables. Multi-column pages, text boxes and complex tables become ordinary flowing paragraphs.</span></li>
+        <li><strong>Scanned PDFs</strong><span>A PDF made of page photos has no text to read. It needs OCR first.</span></li>
+        <li><strong>DRM-free only</strong><span>Store-locked ebooks can't be opened, and Folio never removes DRM.</span></li>
+        <li><strong>বাংলা সমর্থিত</strong><span>Bangla PDFs are written as real text in Noto Serif Bengali, with conjuncts and vowel signs shaped correctly. Other non-Latin scripts become page images in PDF; use EPUB or DOCX to keep them as text.</span></li>
+      </ul>
+    </section>
+  </div>
+</main>
+
+<footer><div class="wrap"><span>Folio Converter</span><span>Files stay on this device. Nothing is sent to a server.</span></div></footer>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // ---------- Formats ----------
+  const FORMATS = {
+    pdf:  { label: 'PDF',      ext: 'pdf',  mime: 'application/pdf' },
+    epub: { label: 'EPUB',     ext: 'epub', mime: 'application/epub+zip' },
+    docx: { label: 'DOCX',     ext: 'docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
+    md:   { label: 'Markdown', ext: 'md',   mime: 'text/markdown' },
+    html: { label: 'HTML',     ext: 'html', mime: 'text/html' },
+    txt:  { label: 'TXT',      ext: 'txt',  mime: 'text/plain' },
+  };
+  const EXT_ALIAS = { markdown: 'md', htm: 'html', xhtml: 'html' };
+  const DEFAULT_TARGET = { pdf: 'epub', epub: 'pdf', docx: 'pdf', md: 'epub', html: 'epub', txt: 'epub' };
+  const MAX_BYTES = 150 * 1024 * 1024;
+
+  class UserError extends Error {}
+
+  if (window.pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+
+  // ---------- Text helpers ----------
+  const norm = (s) => (s || '').replace(/\s+/g, ' ').trim();
+  const esc = (s) => String(s)
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, '')
+    .replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]));
+  const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16);
+  }));
+  const P = (text) => ({ type: 'p', text });
+  const H = (level, text) => ({ type: 'h', level, text });
+
+  function decodeText(buf) {
+    let t = new TextDecoder('utf-8').decode(buf);
+    if ((t.match(/\uFFFD/g) || []).length > 8) t = new TextDecoder('windows-1252').decode(buf);
+    return t.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+  }
+  function parseXml(str) { return new DOMParser().parseFromString(str, 'application/xml'); }
+  function parseMarkup(str) {
+    const x = new DOMParser().parseFromString(str, 'application/xhtml+xml');
+    if (!x.getElementsByTagName('parsererror').length && x.body) return x;
+    return new DOMParser().parseFromString(str, 'text/html');
+  }
+  const byName = (doc, local) => Array.from(doc.getElementsByTagNameNS('*', local));
+
+  // Blocks for writers that only handle paragraphs and headings: list markers become text,
+  // table rows become paragraphs and images are left out.
+  function plainBlocks(book) {
+    const out = [];
+    let num = 0;
+    for (const b of bodyBlocks(book)) {
+      if (b.type === 'img') { num = 0; continue; }
+      if (b.type === 'table') {
+        num = 0;
+        for (const row of b.rows || []) {
+          const text = row.map((c) => (c.blocks || []).map((x) => x.text).join(' ')).join(' | ');
+          if (text.trim()) out.push(P(text));
+        }
+        continue;
+      }
+      if (b.type !== 'p' && b.type !== 'h') continue;
+      if (b.list) {
+        num = b.list.kind === 'number' ? num + 1 : 0;
+        const marker = b.list.kind === 'number' ? num + '. ' : '• ';
+        out.push({ ...b, list: undefined, text: marker + b.text, runs: b.runs ? [{ text: marker }, ...b.runs] : undefined });
+        continue;
+      }
+      num = 0;
+      out.push(b);
+    }
+    return out;
+  }
+
+  // Inline formatting for HTML / XHTML (EPUB) output.
+  function inlineHtml(b) {
+    const runs = b.runs && b.runs.length ? b.runs : [{ text: b.text }];
+    return runs.map((r) => {
+      let h = esc(r.text).replace(/\t/g, ' ');
+      if (r.sup) h = `<sup>${h}</sup>`;
+      if (r.sub) h = `<sub>${h}</sub>`;
+      if (r.strike) h = `<s>${h}</s>`;
+      if (r.underline) h = `<u>${h}</u>`;
+      if (r.italic) h = `<em>${h}</em>`;
+      if (r.bold) h = `<strong>${h}</strong>`;
+      if (r.color && /^[0-9A-Fa-f]{6}$/.test(r.color)) h = `<span style="color:#${r.color}">${h}</span>`;
+      if (r.link && /^(https?:|mailto:)/i.test(r.link)) h = `<a href="${esc(r.link)}">${h}</a>`;
+      return h;
+    }).join('');
+  }
+  function blockStyle(b) {
+    const s = [];
+    if (b.align && b.align !== 'left') s.push('text-align:' + b.align);
+    if (b.indent && b.indent.left) s.push(`margin-left:${Math.round(b.indent.left)}pt`);
+    if (b.indent && b.indent.firstLine) s.push(`text-indent:${Math.round(b.indent.firstLine)}pt`);
+    return s.length ? ` style="${s.join(';')}"` : '';
+  }
+  function runsToMd(b) {
+    const runs = b.runs && b.runs.length ? b.runs : [{ text: b.text }];
+    return runs.map((r) => {
+      const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(r.text.replace(/\t/g, ' '));
+      let t = m[2];
+      if (!t) return r.text.replace(/\t/g, ' ');
+      if (r.strike) t = `~~${t}~~`;
+      if (r.italic) t = `*${t}*`;
+      if (r.bold) t = `**${t}**`;
+      if (r.link && /^(https?:|mailto:)/i.test(r.link)) t = `[${t}](${r.link})`;
+      return m[1] + t + m[3];
+    }).join('');
+  }
+
+  function bodyBlocks(book) {
+    const first = book.blocks[0];
+    return first && first.type === 'h' && first.text.toLowerCase() === book.title.toLowerCase() ? book.blocks.slice(1) : book.blocks;
+  }
+
+  // ---------- HTML / EPUB block collection ----------
+  const HEADS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
+  const SKIP = new Set(['script', 'style', 'nav', 'head', 'svg', 'math', 'noscript', 'template', 'button', 'form', 'select', 'iframe']);
+  const BLOCKS = new Set(['p', 'div', 'li', 'blockquote', 'pre', 'dd', 'dt', 'figcaption', 'td', 'th', 'section', 'article',
+    'header', 'footer', 'aside', 'main', 'ul', 'ol', 'dl', 'table', 'tbody', 'thead', 'tfoot', 'tr', 'figure', 'body', 'hgroup', 'address', 'center']);
+  for (const h of HEADS) BLOCKS.add(h);
+
+  function hasBlockChild(el) {
+    for (const c of el.children) if (BLOCKS.has(c.localName.toLowerCase())) return true;
+    return false;
+  }
+  function ownText(el) {
+    let s = '';
+    for (const n of el.childNodes) if (n.nodeType === 3) s += n.nodeValue;
+    return norm(s);
+  }
+  function collect(el, out) {
+    for (const child of el.children) {
+      const tag = child.localName.toLowerCase();
+      if (SKIP.has(tag)) continue;
+      if (HEADS.has(tag)) {
+        const t = norm(child.textContent);
+        if (t) out.push(H(+tag[1], t));
+      } else if (BLOCKS.has(tag) && hasBlockChild(child)) {
+        const own = ownText(child);
+        if (own) out.push(P(own));
+        collect(child, out);
+      } else {
+        const t = norm(child.textContent);
+        if (t) out.push(P(tag === 'li' ? '• ' + t : t));
+      }
+    }
+  }
+
+  // ---------- Readers ----------
+  async function readFile(buf, kind, fallbackTitle, progress) {
+    switch (kind) {
+      case 'pdf': return readPdfRich(buf, fallbackTitle, progress);
+      case 'epub': return readEpub(buf, fallbackTitle);
+      case 'docx': return readDocx(buf, fallbackTitle);
+      case 'md': return readMd(decodeText(buf), fallbackTitle);
+      case 'html': return readHtml(decodeText(buf), fallbackTitle);
+      case 'txt': return readTxt(decodeText(buf), fallbackTitle);
+    }
+    throw new UserError('Folio can’t read this file type.');
+  }
+
+  function readTxt(text, fallbackTitle) {
+    const blocks = text.split(/\n[ \t]*\n/)
+      .map((p) => norm(p.split('\n').map((l) => l.trim()).join(' ')))
+      .filter(Boolean).map(P);
+    if (!blocks.length) throw new UserError('This text file is empty.');
+    return { title: fallbackTitle, author: '', lang: 'en', blocks };
+  }
+
+  function inlineMd(s) {
+    return s.replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+      .replace(/(\*\*|__)(.+?)\1/g, '$2')
+      .replace(/(\*|_)(?=\S)(.+?)(?<=\S)\1/g, '$2')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/<[^>]+>/g, '');
+  }
+  function readMd(text, fallbackTitle) {
+    const blocks = [];
+    let para = [];
+    let fence = false;
+    const flush = () => { const t = norm(inlineMd(para.join(' '))); if (t) blocks.push(P(t)); para = []; };
+    for (const raw of text.split('\n')) {
+      const line = raw.replace(/\s+$/, '');
+      if (/^\s*(```|~~~)/.test(line)) { flush(); fence = !fence; continue; }
+      if (fence) { if (line.trim()) blocks.push(P(line.trim())); continue; }
+      const h = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line);
+      if (h) { flush(); blocks.push(H(h[1].length, norm(inlineMd(h[2])))); continue; }
+      if (!line.trim() || /^\s*([-*_]\s*){3,}$/.test(line)) { flush(); continue; }
+      const li = /^\s*(?:[-*+]|\d+[.)])\s+(.*)$/.exec(line);
+      if (li) { flush(); blocks.push(P('• ' + norm(inlineMd(li[1])))); continue; }
+      para.push(line.replace(/^\s*>\s?/, '').trim());
+    }
+    flush();
+    if (!blocks.length) throw new UserError('This Markdown file is empty.');
+    const h1 = blocks.find((b) => b.type === 'h' && b.level === 1);
+    return { title: h1 ? h1.text : fallbackTitle, author: '', lang: 'en', blocks };
+  }
+
+  function readHtml(text, fallbackTitle) {
+    const doc = new DOMParser().parseFromString(text, 'text/html');
+    const blocks = [];
+    collect(doc.body, blocks);
+    if (!blocks.length) throw new UserError('This HTML page has no readable text.');
+    const h1 = blocks.find((b) => b.type === 'h' && b.level === 1);
+    const author = doc.querySelector('meta[name="author"]');
+    return {
+      title: norm(doc.title) || (h1 && h1.text) || fallbackTitle,
+      author: author ? norm(author.getAttribute('content')) : '',
+      lang: doc.documentElement.getAttribute('lang') || 'en',
+      blocks,
+    };
+  }
+
+  async function loadZip(buf, what) {
+    try { return await JSZip.loadAsync(buf); }
+    catch (e) { throw new UserError(`This file is damaged or isn’t a valid ${what} file.`); }
+  }
+
+  function resolvePath(base, href) {
+    let path = href.split('#')[0];
+    try { path = decodeURIComponent(path); } catch (e) { /* keep as is */ }
+    const out = [];
+    for (const part of (base + path).split('/')) {
+      if (!part || part === '.') continue;
+      if (part === '..') out.pop(); else out.push(part);
+    }
+    return out.join('/');
+  }
+
+  async function readEpub(buf, fallbackTitle) {
+    const zip = await loadZip(buf, 'EPUB');
+    const container = zip.file('META-INF/container.xml');
+    if (!container) throw new UserError('This doesn’t look like an EPUB (no META-INF/container.xml).');
+    if (zip.file('META-INF/rights.xml')) throw new UserError('This EPUB is DRM-protected. Folio only converts DRM-free books.');
+    const enc = zip.file('META-INF/encryption.xml');
+    if (enc) {
+      const refs = byName(parseXml(await enc.async('string')), 'CipherReference').map((r) => (r.getAttribute('URI') || '').toLowerCase());
+      if (refs.some((u) => /\.(x?html?|xml)$/.test(u))) throw new UserError('This EPUB is DRM-protected. Folio only converts DRM-free books.');
+    }
+    const rootfile = byName(parseXml(await container.async('string')), 'rootfile')[0];
+    const opfPath = rootfile && rootfile.getAttribute('full-path');
+    const opfFile = opfPath && zip.file(opfPath);
+    if (!opfFile) throw new UserError('This EPUB is missing its package file.');
+    const opf = parseXml(await opfFile.async('string'));
+    const base = opfPath.includes('/') ? opfPath.slice(0, opfPath.lastIndexOf('/') + 1) : '';
+
+    const manifest = {};
+    for (const item of byName(opf, 'item')) manifest[item.getAttribute('id')] = item;
+    const blocks = [];
+    for (const ref of byName(opf, 'itemref')) {
+      if (ref.getAttribute('linear') === 'no') continue;
+      const item = manifest[ref.getAttribute('idref')];
+      if (!item || (item.getAttribute('properties') || '').split(/\s+/).includes('nav')) continue;
+      const f = zip.file(resolvePath(base, item.getAttribute('href') || ''));
+      if (!f) continue;
+      const doc = parseMarkup(await f.async('string'));
+      if (doc.body) collect(doc.body, blocks);
+    }
+    if (!blocks.length) throw new UserError('This EPUB has no readable text.');
+    const meta = (name) => { const el = byName(opf, name)[0]; return el ? norm(el.textContent) : ''; };
+    return { title: meta('title') || fallbackTitle, author: meta('creator'), lang: meta('language') || 'en', blocks };
+  }
+
+  const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  function wAttr(el, name) { return el ? (el.getAttributeNS(W, name) || el.getAttribute('w:' + name) || '') : ''; }
+  function headingLevel(style) {
+    if (/^title$/i.test(style)) return 1;
+    const m = /^heading\s*([1-6])$/i.exec((style || '').trim());
+    return m ? +m[1] : null;
+  }
+  function owningParagraph(n) {
+    let p = n.parentNode;
+    while (p && !(p.localName === 'p' && p.namespaceURI === W)) p = p.parentNode;
+    return p;
+  }
+  async function readDocx(buf, fallbackTitle) {
+    const zip = await loadZip(buf, 'DOCX');
+    const docFile = zip.file('word/document.xml');
+    if (!docFile) throw new UserError('This doesn’t look like a Word document (no document body found).');
+    const doc = parseXml(await docFile.async('string'));
+    const styleNames = {};
+    const stylesFile = zip.file('word/styles.xml');
+    if (stylesFile) {
+      const styles = parseXml(await stylesFile.async('string'));
+      for (const s of styles.getElementsByTagNameNS(W, 'style')) styleNames[wAttr(s, 'styleId')] = wAttr(s.getElementsByTagNameNS(W, 'name')[0], 'val');
+    }
+    const body = doc.getElementsByTagNameNS(W, 'body')[0];
+    if (!body) throw new UserError('This Word document has no body.');
+    const blocks = [];
+    for (const p of Array.from(body.getElementsByTagNameNS(W, 'p'))) {
+      let t = '';
+      for (const n of p.getElementsByTagNameNS(W, '*')) {
+        if (owningParagraph(n) !== p) continue;
+        if (n.localName === 't') t += n.textContent;
+        else if (n.localName === 'tab' || n.localName === 'br' || n.localName === 'cr') t += ' ';
+      }
+      t = norm(t);
+      if (!t) continue;
+      const styleId = wAttr(p.getElementsByTagNameNS(W, 'pStyle')[0], 'val');
+      const level = headingLevel(styleId) || headingLevel(styleNames[styleId] || '');
+      if (level) blocks.push(H(level, t));
+      else blocks.push(P(p.getElementsByTagNameNS(W, 'numPr').length ? '• ' + t : t));
+    }
+    if (!blocks.length) throw new UserError('This Word document has no text to convert.');
+    let title = '', author = '';
+    const core = zip.file('docProps/core.xml');
+    if (core) {
+      const c = parseXml(await core.async('string'));
+      title = norm((byName(c, 'title')[0] || {}).textContent);
+      author = norm((byName(c, 'creator')[0] || {}).textContent);
+    }
+    const h1 = blocks[0].type === 'h' ? blocks[0].text : '';
+    return { title: title || h1 || fallbackTitle, author, lang: 'en', blocks };
+  }
+
+  async function readPdf(buf, fallbackTitle, progress) {
+    if (!window.pdfjsLib) throw new UserError('The PDF reader didn’t load. Check your connection and reload the page.');
+    let pdf;
+    try {
+      pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf.slice(0)), isEvalSupported: false }).promise;
+    } catch (e) {
+      if (e && e.name === 'PasswordException') throw new UserError('This PDF is password-protected. Remove the password and try again.');
+      throw new UserError('This PDF couldn’t be opened. It may be damaged.');
+    }
+
+    // 1. Lines, in content order (keeps two-column pages in reading order).
+    const lines = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      progress(`Reading page ${i} of ${pdf.numPages}…`);
+      const page = await pdf.getPage(i);
+      const tc = await page.getTextContent();
+      let cur = null;
+      const finish = () => { if (cur && cur.text.trim()) lines.push(cur); cur = null; };
+      for (const it of tc.items) {
+        if (typeof it.str !== 'string') continue;
+        const size = Math.hypot(it.transform[2], it.transform[3]) || it.height || 0;
+        const x = it.transform[4], y = it.transform[5];
+        if (cur && Math.abs(y - cur.y) > Math.max(2, (size || cur.size) * 0.5)) finish();
+        if (!cur) cur = { text: '', size: 0, y, page: i, endX: x };
+        if (cur.text && !/\s$/.test(cur.text) && !/^\s/.test(it.str) && x - cur.endX > size * 0.15) cur.text += ' ';
+        cur.text += it.str;
+        if (it.str.trim()) cur.size = Math.max(cur.size, size);
+        cur.endX = x + (it.width || 0);
+        if (it.hasEOL) finish();
+      }
+      finish();
+      page.cleanup();
+    }
+    const clean = lines
+      .map((l) => ({ ...l, text: norm(l.text) }))
+      .filter((l) => l.text && !/^(page\s+)?\d{1,4}(\s+of\s+\d+)?$/i.test(l.text));
+    const chars = clean.reduce((n, l) => n + l.text.length, 0);
+    if (chars < 20) throw new UserError('No selectable text found. This looks like a scanned PDF, which needs OCR before it can be converted.');
+
+    // 2. Typical body size, line gap and line length.
+    const weight = new Map();
+    for (const l of clean) { const k = Math.round(l.size * 2) / 2; weight.set(k, (weight.get(k) || 0) + l.text.length); }
+    const bodySize = [...weight.entries()].sort((a, b) => b[1] - a[1])[0][0] || 10;
+    const gaps = [], lens = [];
+    for (let i = 1; i < clean.length; i++) {
+      const a = clean[i - 1], b = clean[i];
+      if (a.page === b.page && Math.abs(a.size - bodySize) < 1 && Math.abs(b.size - bodySize) < 1) {
+        const g = a.y - b.y; if (g > 0 && g < bodySize * 4) gaps.push(g);
+      }
+      if (Math.abs(a.size - bodySize) < 1) lens.push(a.text.length);
+    }
+    const median = (arr, q = 0.5) => { if (!arr.length) return 0; const s = [...arr].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(s.length * q))]; };
+    const lineGap = median(gaps) || bodySize * 1.3;
+    const fullLen = median(lens, 0.8) || 70;
+
+    // 3. Paragraphs and headings.
+    const blocks = [];
+    let para = '', prev = null, heading = null;
+    const flushPara = () => { const t = norm(para); if (t) blocks.push(P(t)); para = ''; };
+    const flushHeading = () => { if (heading) { blocks.push(H(heading.level, norm(heading.text))); heading = null; } };
+    for (const l of clean) {
+      const isHeading = l.size >= bodySize * 1.2 && l.text.length < 150;
+      if (isHeading) {
+        flushPara();
+        const level = l.size >= bodySize * 1.6 ? 1 : l.size >= bodySize * 1.35 ? 2 : 3;
+        if (heading && heading.level === level && prev && prev.page === l.page) heading.text += ' ' + l.text;
+        else { flushHeading(); heading = { level, text: l.text }; }
+        prev = l; continue;
+      }
+      flushHeading();
+      if (para && prev) {
+        const gap = prev.y - l.y;
+        const endsSentence = /[.!?:;"”’)\]।]$/.test(prev.text);
+        const shortPrev = prev.text.length < fullLen * 0.7;
+        const newPara = (prev.page === l.page && gap > lineGap * 1.3) ||
+          (prev.page === l.page && gap < 0 && endsSentence) ||
+          (prev.page !== l.page && endsSentence && shortPrev) ||
+          (shortPrev && endsSentence);
+        if (newPara) flushPara();
+      }
+      if (!para) para = l.text;
+      else if (/[A-Za-z]-$/.test(para) && /^[a-z]/.test(l.text)) para = para.slice(0, -1) + l.text;
+      else para += ' ' + l.text;
+      prev = l;
+    }
+    flushPara(); flushHeading();
+
+    let title = '', author = '';
+    try {
+      const meta = await pdf.getMetadata();
+      title = norm(meta.info && meta.info.Title);
+      author = norm(meta.info && meta.info.Author);
+    } catch (e) { /* no metadata */ }
+    if (/^(untitled|microsoft word|document\d*)\b|\.(docx?|pdf|indd|txt)$/i.test(title)) title = '';
+    const h1 = blocks.find((b) => b.type === 'h');
+    pdf.destroy();
+    return { title: title || (h1 && h1.text.length < 100 ? h1.text : '') || fallbackTitle, author, lang: 'en', blocks };
+  }
+
+  // ---------- PDF reader (rich formatting) ----------
+  // readPdfRich(buf, fallbackTitle, progress) -> rich book (see block model above).
+  const pdfR_MARK = /^(?:[•●◦○▪■□◆◇►▸‣⁃∙·o\-–—*]|\(?\d{1,3}[.)]|\(?[a-zA-Z][.)]|\(?[ivxlcdm]{1,5}[.)])$/;
+  const pdfR_SENT = /[.!?:;"”’)\]।]$/;
+
+  function pdfR_mul(m, n) {
+    return [m[0] * n[0] + m[1] * n[2], m[0] * n[1] + m[1] * n[3], m[2] * n[0] + m[3] * n[2], m[2] * n[1] + m[3] * n[3],
+      m[4] * n[0] + m[5] * n[2] + n[4], m[4] * n[1] + m[5] * n[3] + n[5]];
+  }
+  const pdfR_apply = (m, x, y) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
+  const pdfR_hex = (r, g, b) => [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('').toUpperCase();
+
+  // Font program name -> { family, bold, italic }.
+  function pdfR_font(raw) {
+    const name = String(raw || '').replace(/^[A-Z]{6}\+/, '');
+    if (!name || /^g_d\d+_f\d+$/.test(name)) return { family: null, bold: false, italic: false };
+    const bold = /bold|black|heavy|semibold|demibold|demi\b|extrabold|ultrabold/i.test(name);
+    const italic = /italic|oblique|kursiv/i.test(name);
+    let fam = name.split(/[-,]/)[0]
+      .replace(/(PS)?MT$/, '').replace(/PS$/, '')
+      .replace(/(Bold|Italic|Oblique|Regular|Roman|Semibold|SemiBold|Light|Medium|Black|Heavy|Book|Demi|Condensed|Narrow)+$/, '');
+    const MAP = { Times: 'Times New Roman', Helvetica: 'Arial', Courier: 'Courier New', Symbol: 'Symbol', ZapfDingbats: 'Wingdings' };
+    if (MAP[fam]) fam = MAP[fam];
+    else fam = fam.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2').trim();
+    if (/^times new roman$/i.test(fam) || /^timesnewroman/i.test(name)) fam = 'Times New Roman';
+    return { family: fam || null, bold, italic };
+  }
+
+  // Walk the operator list: where each text show starts (for colour), thin horizontal shapes
+  // (underline / strikethrough candidates) and painted images.
+  function pdfR_scanOps(ol) {
+    const OPS = pdfjsLib.OPS;
+    const shows = [], lines = [], images = [], dots = [];
+    let ctm = [1, 0, 0, 1, 0, 0];
+    const stack = [];
+    let fill = '000000', lineWidth = 1;
+    let tm = [1, 0, 0, 1, 0, 0], tlm = [1, 0, 0, 1, 0, 0];
+    let fontSize = 12, charSp = 0, wordSp = 0, hScale = 1, leading = 0, rise = 0;
+    const fnA = ol.fnArray, argA = ol.argsArray;
+    for (let i = 0; i < fnA.length; i++) {
+      const fn = fnA[i], a = argA[i];
+      switch (fn) {
+        case OPS.save: stack.push({ ctm, fill, lineWidth }); break;
+        case OPS.restore: { const s = stack.pop(); if (s) ({ ctm, fill, lineWidth } = s); break; }
+        case OPS.transform: ctm = pdfR_mul(a, ctm); break;
+        case OPS.setFillRGBColor: {
+          if (typeof a[0] === 'string') fill = a[0].replace('#', '').toUpperCase();
+          else fill = pdfR_hex(a[0], a[1], a[2]);
+          break;
+        }
+        case OPS.setFillGray: fill = pdfR_hex(a[0] * 255, a[0] * 255, a[0] * 255); break;
+        case OPS.setFillCMYKColor: { const [c, m, y, k] = a; fill = pdfR_hex(255 * (1 - c) * (1 - k), 255 * (1 - m) * (1 - k), 255 * (1 - y) * (1 - k)); break; }
+        case OPS.setLineWidth: lineWidth = a[0]; break;
+        case OPS.beginText: tm = [1, 0, 0, 1, 0, 0]; tlm = tm; break;
+        case OPS.setFont: fontSize = a[1]; break;
+        case OPS.setCharSpacing: charSp = a[0]; break;
+        case OPS.setWordSpacing: wordSp = a[0]; break;
+        case OPS.setHScale: hScale = a[0] / 100; break;
+        case OPS.setLeading: leading = a[0]; break;
+        case OPS.setTextRise: rise = a[0]; break;
+        case OPS.setTextMatrix: tm = a.slice(0, 6); tlm = tm; break;
+        case OPS.moveText: tlm = pdfR_mul([1, 0, 0, 1, a[0], a[1]], tlm); tm = tlm; break;
+        case OPS.setLeadingMoveText: leading = -a[1]; tlm = pdfR_mul([1, 0, 0, 1, a[0], a[1]], tlm); tm = tlm; break;
+        case OPS.nextLine: tlm = pdfR_mul([1, 0, 0, 1, 0, -leading], tlm); tm = tlm; break;
+        case OPS.showText: case OPS.showSpacedText: case OPS.nextLineShowText: case OPS.nextLineSetSpacingShowText: {
+          if (fn === OPS.nextLineShowText || fn === OPS.nextLineSetSpacingShowText) { tlm = pdfR_mul([1, 0, 0, 1, 0, -leading], tlm); tm = tlm; }
+          const m = pdfR_mul(tm, ctm);
+          const [x, y] = pdfR_apply(m, 0, rise);
+          shows.push({ x, y, color: fill });
+          let adv = 0;
+          const glyphs = fn === OPS.nextLineSetSpacingShowText ? a[2] : a[0];
+          if (Array.isArray(glyphs)) {
+            for (const g of glyphs) {
+              if (typeof g === 'number') adv -= g / 1000 * fontSize * hScale;
+              else if (g) adv += ((g.width || 0) / 1000 * fontSize + charSp + (g.isSpace ? wordSp : 0)) * hScale;
+            }
+          }
+          tm = pdfR_mul([1, 0, 0, 1, adv, 0], tm);
+          break;
+        }
+        case OPS.constructPath: {
+          // What paints this path decides if it's a visible shape.
+          let k = i + 1;
+          while (k < fnA.length && (fnA[k] === OPS.clip || fnA[k] === OPS.eoClip)) k++;
+          const paint = fnA[k];
+          const filled = paint === OPS.fill || paint === OPS.eoFill || paint === OPS.fillStroke || paint === OPS.eoFillStroke ||
+            paint === OPS.closeFillStroke || paint === OPS.closeEOFillStroke;
+          const stroked = paint === OPS.stroke || paint === OPS.closeStroke || paint === OPS.fillStroke || paint === OPS.eoFillStroke;
+          if (k > i + 1 || (!filled && !stroked)) break;
+          const ops = a[0], c = a[1];
+          // Small filled dots/squares: bullet markers drawn as shapes (browsers do this).
+          if (c.length >= 4) {
+            const pts = [];
+            for (let q = 0; q + 1 < c.length; q += 2) pts.push(pdfR_apply(ctm, c[q], c[q + 1]));
+            const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+            const bw = Math.max(...xs) - Math.min(...xs), bh = Math.max(...ys) - Math.min(...ys);
+            if (bw >= 1.5 && bh >= 1.5 && bw <= 9 && bh <= 9 && Math.abs(bw - bh) < 1.5) {
+              dots.push({ x1: Math.min(...xs), x2: Math.max(...xs), y1: Math.min(...ys), y2: Math.max(...ys) });
+            }
+          }
+          let ci = 0, px = 0, py = 0;
+          for (const op of ops) {
+            if (op === OPS.rectangle) {
+              const [x, y, w, h] = c.slice(ci, ci + 4); ci += 4;
+              const pts = [pdfR_apply(ctm, x, y), pdfR_apply(ctm, x + w, y), pdfR_apply(ctm, x, y + h), pdfR_apply(ctm, x + w, y + h)];
+              const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+              const bw = Math.max(...xs) - Math.min(...xs), bh = Math.max(...ys) - Math.min(...ys);
+              if (bh <= 2.5 && bw >= 3) lines.push({ x1: Math.min(...xs), x2: Math.max(...xs), y: (Math.max(...ys) + Math.min(...ys)) / 2, color: fill });
+            } else if (op === OPS.moveTo) { px = c[ci]; py = c[ci + 1]; ci += 2; }
+            else if (op === OPS.lineTo) {
+              const x = c[ci], y = c[ci + 1]; ci += 2;
+              if (stroked) {
+                const p1 = pdfR_apply(ctm, px, py), p2 = pdfR_apply(ctm, x, y);
+                const lw = lineWidth * Math.hypot(ctm[2], ctm[3]);
+                if (Math.abs(p1[1] - p2[1]) < 0.6 && Math.abs(p1[0] - p2[0]) >= 3 && lw <= 2.5) {
+                  lines.push({ x1: Math.min(p1[0], p2[0]), x2: Math.max(p1[0], p2[0]), y: (p1[1] + p2[1]) / 2, color: fill });
+                }
+              }
+              px = x; py = y;
+            } else if (op === OPS.curveTo) ci += 6;
+            else if (op === OPS.curveTo2 || op === OPS.curveTo3) ci += 4;
+          }
+          break;
+        }
+        case OPS.paintImageXObject: case OPS.paintJpegXObject: case OPS.paintInlineImageXObject: {
+          const w = Math.hypot(ctm[0], ctm[1]), h = Math.hypot(ctm[2], ctm[3]);
+          const [x0, y0] = pdfR_apply(ctm, 0, 0), [x1, y1] = pdfR_apply(ctm, 1, 1);
+          images.push({
+            id: fn === OPS.paintInlineImageXObject ? null : a[0], inline: fn === OPS.paintInlineImageXObject ? a[0] : null,
+            x: Math.min(x0, x1), y: Math.min(y0, y1), w, h,
+          });
+          break;
+        }
+      }
+    }
+    return { shows, lines, images, dots };
+  }
+
+  // Decoded pdf.js image -> PNG bytes (browser only).
+  async function pdfR_png(img) {
+    if (!img || typeof document === 'undefined') return null;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (img.bitmap) {
+      canvas.width = img.bitmap.width; canvas.height = img.bitmap.height;
+      ctx.drawImage(img.bitmap, 0, 0);
+    } else if (img.data && img.width && img.height) {
+      canvas.width = img.width; canvas.height = img.height;
+      const out = ctx.createImageData(img.width, img.height);
+      const d = img.data, o = out.data, n = img.width * img.height;
+      if (img.kind === 3) o.set(d.subarray(0, n * 4));
+      else if (img.kind === 2) { for (let i = 0, j = 0; i < n; i++, j += 3) { o[i * 4] = d[j]; o[i * 4 + 1] = d[j + 1]; o[i * 4 + 2] = d[j + 2]; o[i * 4 + 3] = 255; } }
+      else if (img.kind === 1) {
+        const rowBytes = (img.width + 7) >> 3;
+        for (let yy = 0; yy < img.height; yy++) for (let xx = 0; xx < img.width; xx++) {
+          const bit = (d[yy * rowBytes + (xx >> 3)] >> (7 - (xx & 7))) & 1, v = bit ? 255 : 0, p = (yy * img.width + xx) * 4;
+          o[p] = o[p + 1] = o[p + 2] = v; o[p + 3] = 255;
+        }
+      } else return null;
+      ctx.putImageData(out, 0, 0);
+    } else return null;
+    const blob = await new Promise((res) => canvas.toBlob(res, 'image/png'));
+    return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
+  }
+
+  function pdfR_getObj(objs, id, ms) {
+    return new Promise((resolve) => {
+      let done = false;
+      const t = setTimeout(() => { if (!done) { done = true; resolve(null); } }, ms);
+      try { objs.get(id, (v) => { if (!done) { done = true; clearTimeout(t); resolve(v); } }); }
+      catch (e) { if (!done) { done = true; clearTimeout(t); resolve(null); } }
+    });
+  }
+
+  const pdfR_median = (arr, q = 0.5) => {
+    if (!arr.length) return 0;
+    const s = [...arr].sort((x, y) => x - y);
+    return s[Math.min(s.length - 1, Math.max(0, Math.floor((s.length - 1) * q + 0.5)))];
+  };
+
+  function pdfR_sameFmt(a, b) {
+    return a.bold === b.bold && a.italic === b.italic && a.underline === b.underline && a.strike === b.strike &&
+      a.size === b.size && a.color === b.color && a.font === b.font && a.link === b.link;
+  }
+  function pdfR_pushRun(runs, r) {
+    if (!r.text) return;
+    const last = runs[runs.length - 1];
+    if (last && pdfR_sameFmt(last, r)) last.text += r.text;
+    else runs.push({ ...r });
+  }
+  function pdfR_cleanRun(r) {
+    const o = { text: r.text };
+    for (const k of ['bold', 'italic', 'underline', 'strike']) if (r[k]) o[k] = true;
+    if (r.size) o.size = r.size;
+    if (r.color && r.color !== '000000') o.color = r.color;
+    if (r.font) o.font = r.font;
+    if (r.link) o.link = r.link;
+    return o;
+  }
+
+  async function readPdfRich(buf, fallbackTitle, progress) {
+    if (!window.pdfjsLib) throw new UserError('The PDF reader didn’t load. Check your connection and reload the page.');
+    let pdf;
+    try {
+      pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf.slice(0)), isEvalSupported: false, fontExtraProperties: true }).promise;
+    } catch (e) {
+      if (e && e.name === 'PasswordException') throw new UserError('This PDF is password-protected. Remove the password and try again.');
+      throw new UserError('This PDF couldn’t be opened. It may be damaged.');
+    }
+
+    // ---- 1. Per page: positioned, formatted lines and images.
+    const pages = [];
+    for (let pn = 1; pn <= pdf.numPages; pn++) {
+      progress(`Reading page ${pn} of ${pdf.numPages}…`);
+      const page = await pdf.getPage(pn);
+      const [vx0, vy0, vx1, vy1] = page.view;
+      const ol = await page.getOperatorList();
+      const [tc, annots] = await Promise.all([page.getTextContent(), page.getAnnotations().catch(() => [])]);
+      const scan = pdfR_scanOps(ol);
+      const links = annots.filter((a) => a.subtype === 'Link' && a.url && a.rect);
+      const fontInfo = new Map();
+      const fontOf = (id) => {
+        if (!fontInfo.has(id)) {
+          let f = null;
+          try { f = page.commonObjs.get(id); } catch (e) { /* not loaded */ }
+          fontInfo.set(id, pdfR_font(f && f.name));
+        }
+        return fontInfo.get(id);
+      };
+
+      const items = [];
+      for (const it of tc.items) {
+        if (typeof it.str !== 'string') continue;
+        if (!it.str && !it.hasEOL) continue;
+        const t = it.transform;
+        const size = Math.hypot(t[2], t[3]) || it.height || 0;
+        const f = fontOf(it.fontName);
+        items.push({ str: it.str, x: t[4] - vx0, y: t[5] - vy0, w: it.width || 0, size: Math.round(size * 2) / 2, rawSize: size,
+          font: f.family, bold: f.bold, italic: f.italic, eol: !!it.hasEOL, color: '000000', underline: false, strike: false, link: null });
+      }
+      // Colour: the text show that starts at or just before each item on the same baseline.
+      for (const it of items) {
+        let best = null;
+        for (const s of scan.shows) {
+          if (Math.abs((s.y - vy0) - it.y) > Math.max(1, it.rawSize * 0.3)) continue;
+          const sx = s.x - vx0;
+          if (sx <= it.x + 0.6 && (!best || sx > best.x - vx0)) best = s;
+        }
+        if (best) it.color = best.color;
+      }
+      // Lines of text, in content order.
+      const lines = [];
+      let cur = null;
+      const finish = () => { if (cur && cur.items.some((i) => i.str.trim())) lines.push(cur); cur = null; };
+      for (const it of items) {
+        if (!it.str) { if (it.eol) finish(); continue; }
+        if (cur && Math.abs(it.y - cur.y) > Math.max(2, Math.max(it.rawSize, cur.size) * 0.5)) finish();
+        if (!cur) cur = { items: [], y: it.y, size: 0, page: pn };
+        cur.items.push(it);
+        if (it.str.trim()) cur.size = Math.max(cur.size, it.size);
+        if (it.eol) finish();
+      }
+      finish();
+      for (const ln of lines) {
+        const vis = ln.items.filter((i) => i.str.trim());
+        ln.x0 = Math.min(...vis.map((i) => i.x));
+        ln.x1 = Math.max(...vis.map((i) => i.x + i.w));
+      }
+      // Pieces of one visual row that the PDF split into separate lines: consecutive pieces
+      // (table cells, tab stops) or a nearby piece anywhere on the page (list numbers).
+      // Far-apart, non-consecutive pieces are separate columns and stay apart.
+      for (let i = 0; i < lines.length; i++) {
+        for (let j = i + 1; j < lines.length; j++) {
+          const a = lines[i], b = lines[j];
+          if (Math.abs(a.y - b.y) >= 1) continue;
+          const left = a.x1 <= b.x0 + 1 ? a : b.x1 <= a.x0 + 1 ? b : null;
+          if (!left) continue;
+          const right = left === a ? b : a;
+          const gap = right.x0 - left.x1;
+          if (j === i + 1 || gap < 2 * Math.max(a.size, b.size)) {
+            a.items = [...left.items, ...right.items];
+            a.x0 = left.x0; a.x1 = right.x1; a.size = Math.max(a.size, b.size);
+            lines.splice(j, 1); j = i;
+          }
+        }
+      }
+      // Bullet dots drawn as shapes just left of a line.
+      for (const ln of lines) {
+        const d = scan.dots.find((d) => {
+          const cy = (d.y1 + d.y2) / 2 - vy0, x2 = d.x2 - vx0;
+          return cy > ln.y - 0.1 * ln.size && cy < ln.y + 0.7 * ln.size && x2 <= ln.x0 + 0.5 && ln.x0 - x2 < 2.5 * ln.size;
+        });
+        if (d) ln.dot = { x: d.x1 - vx0 };
+      }
+      // Underline / strikethrough from thin shapes that hug a run of text.
+      for (const hl of scan.lines) {
+        const hx1 = hl.x1 - vx0, hx2 = hl.x2 - vx0, hy = hl.y - vy0;
+        for (const ln of lines) {
+          const off = ln.y - hy; // positive = below baseline
+          const under = off > -0.05 * ln.size && off < 0.32 * ln.size;
+          const strike = -off > 0.15 * ln.size && -off < 0.45 * ln.size;
+          if (!under && !strike) continue;
+          const covered = ln.items.filter((i) => i.str.trim() && Math.min(i.x + i.w, hx2) - Math.max(i.x, hx1) > 0.5 * Math.max(1, Math.min(i.w, hx2 - hx1)));
+          if (!covered.length) continue;
+          const cx1 = Math.min(...covered.map((i) => i.x)), cx2 = Math.max(...covered.map((i) => i.x + i.w));
+          if (hx1 < cx1 - 3 || hx2 > cx2 + 3) continue; // longer than the text: a rule or table border
+          for (const i of ln.items) {
+            if (i.x >= hx1 - 1 && i.x + i.w <= hx2 + 1) { if (under) i.underline = true; else i.strike = true; }
+          }
+        }
+      }
+      // Links
+      for (const a of links) {
+        const [ax1, ay1, ax2, ay2] = a.rect.map((v, k) => v - (k % 2 ? vy0 : vx0));
+        for (const ln of lines) for (const i of ln.items) {
+          const cx = i.x + i.w / 2, cy = ln.y + ln.size * 0.3;
+          if (cx >= Math.min(ax1, ax2) && cx <= Math.max(ax1, ax2) && cy >= Math.min(ay1, ay2) && cy <= Math.max(ay1, ay2)) i.link = a.url;
+        }
+      }
+      // Images
+      const imgs = [];
+      const pw = vx1 - vx0, ph = vy1 - vy0;
+      for (const im of scan.images) {
+        if (im.w < 12 || im.h < 12) continue;
+        if (im.w * im.h > pw * ph * 0.8) continue; // page background
+        let obj = im.inline;
+        if (!obj && im.id) obj = await pdfR_getObj(String(im.id).startsWith('g_') ? page.commonObjs : page.objs, im.id, 4000);
+        const data = await pdfR_png(obj);
+        if (data) imgs.push({ x: im.x - vx0, y: im.y - vy0, w: im.w, h: im.h, data });
+      }
+      pages.push({ n: pn, width: pw, height: ph, lines, imgs });
+      page.cleanup();
+      if (pn % 4 === 0) await new Promise((r) => setTimeout(r, 0));
+    }
+
+    // ---- 2. Drop running headers/footers and bare page numbers.
+    const key = (ln) => ln.items.map((i) => i.str).join('').replace(/\d+/g, '#').replace(/\s+/g, ' ').trim().toLowerCase();
+    const counts = new Map();
+    for (const p of pages) {
+      const seen = new Set();
+      for (const ln of p.lines) {
+        const zone = ln.y > p.height * 0.88 || ln.y < p.height * 0.12;
+        if (!zone) continue;
+        const k = key(ln) + '@' + Math.round(ln.y / 4);
+        if (!seen.has(k)) { seen.add(k); counts.set(k, (counts.get(k) || 0) + 1); }
+      }
+    }
+    const minRepeat = Math.max(2, Math.ceil(pages.length * 0.5));
+    for (const p of pages) {
+      p.lines = p.lines.filter((ln) => {
+        const zone = ln.y > p.height * 0.88 || ln.y < p.height * 0.12;
+        if (!zone) return true;
+        const text = ln.items.map((i) => i.str).join('').trim();
+        if (/^(page\s+)?\d{1,4}(\s*(of|\/)\s*\d+)?$/i.test(text)) return false;
+        return pages.length < 2 || (counts.get(key(ln) + '@' + Math.round(ln.y / 4)) || 0) < minRepeat;
+      });
+    }
+
+    const allLines = pages.flatMap((p) => p.lines);
+    const chars = allLines.reduce((n, l) => n + l.items.reduce((m, i) => m + i.str.trim().length, 0), 0);
+    if (chars < 20) throw new UserError('No selectable text found. This looks like a scanned PDF, which needs OCR before it can be converted.');
+
+    // ---- 3. Document geometry: body size, text column, line spacing.
+    const sizeW = new Map();
+    for (const l of allLines) for (const i of l.items) if (i.str.trim()) sizeW.set(i.size, (sizeW.get(i.size) || 0) + i.str.length);
+    const bodySize = [...sizeW.entries()].sort((a, b) => b[1] - a[1])[0][0] || 11;
+    const bodyLines = allLines.filter((l) => Math.abs(l.size - bodySize) < 0.6);
+    const L = pdfR_median(bodyLines.map((l) => l.x0), 0.05);
+    const R = pdfR_median(bodyLines.map((l) => l.x1), 0.95);
+    const C = (L + R) / 2, colW = Math.max(50, R - L);
+    const gapsBySize = new Map();
+    for (const p of pages) for (let i = 1; i < p.lines.length; i++) {
+      const a = p.lines[i - 1], b = p.lines[i];
+      const g = a.y - b.y;
+      if (Math.abs(a.size - b.size) < 0.6 && g > a.size * 0.8 && g < a.size * 2.2) {
+        if (!gapsBySize.has(a.size)) gapsBySize.set(a.size, []);
+        gapsBySize.get(a.size).push(g);
+      }
+    }
+    const lineGap = (size) => {
+      const arr = gapsBySize.get(size);
+      return arr && arr.length >= 2 ? pdfR_median(arr, 0.3) : size * 1.2;
+    };
+    const p0 = pages[0];
+    const topY = Math.max(...(p0.lines.length ? p0.lines.map((l) => l.y + l.size) : [p0.height - 72]));
+    const clampM = (v) => Math.round(Math.max(18, Math.min(144, v)));
+    // Top/bottom can't be measured reliably from short pages; follow the side margins, capped at 1 inch.
+    const vMargin = clampM(Math.min(p0.height - topY, Math.max(36, Math.min(L, 72))));
+    const geometry = {
+      width: Math.round(p0.width * 100) / 100, height: Math.round(p0.height * 100) / 100,
+      margins: { top: vMargin, bottom: vMargin, left: clampM(L), right: clampM(p0.width - R) },
+    };
+
+    // ---- 4. Lines -> paragraphs.
+    const lineText = (ln) => ln.items.map((i) => i.str).join('');
+    function listMarker(ln) {
+      const vis = ln.items.filter((i) => i.str.trim());
+      if (!vis.length) return null;
+      if (ln.dot) return { kind: 'bullet', marker: '•', textX: ln.x0, markerX: ln.dot.x };
+      const first = vis[0];
+      let marker = null, rest = null;
+      if (pdfR_MARK.test(first.str.trim()) && vis.length > 1 && (vis[1].x - (first.x + first.w) > first.size * 0.12 || /\s$/.test(first.str))) { marker = first.str.trim(); rest = vis[1].x; }
+      else {
+        const m = /^(\(?\d{1,3}[.)]|[•●◦▪■–\-*])\s+/.exec(first.str);
+        if (m && first.x - L > -1) { marker = m[1]; rest = first.x + first.w * (m[0].length / first.str.length); }
+      }
+      if (!marker) return null;
+      const kind = /^\(?(\d+|[a-zA-Z]|[ivxlcdm]+)[.)]$/.test(marker) ? 'number' : 'bullet';
+      return { kind, marker, textX: rest, markerX: first.x };
+    }
+
+    const paras = []; // { page, lines, list, startsPage }
+    for (const p of pages) {
+      let para = null;
+      // Right edge of the text column a line belongs to (nearby lines sharing its left edge), so
+      // multi-column pages don't look like a page full of short lines.
+      const rightOf = (ln) => {
+        const peers = p.lines.filter((o) => o !== ln && Math.abs(o.x0 - ln.x0) < 3 && Math.abs(o.y - ln.y) < 6 * ln.size);
+        return peers.length ? Math.max(ln.x1, ...peers.map((o) => o.x1)) : R;
+      };
+      // Rows with column gaps (tables, tab stops) are never joined with their neighbours.
+      for (const ln of p.lines) {
+        const vis = ln.items.filter((i) => i.str.trim());
+        ln.hasTab = ln.items.some((i) => !i.str.trim() && i.w > i.size * 1.2) ||
+          vis.some((i, k) => k > 0 && i.x - (vis[k - 1].x + vis[k - 1].w) > i.size * 2);
+      }
+      p.lines.forEach((ln, idx) => {
+        const lm = listMarker(ln);
+        let start = !para || !!lm;
+        if (para && !start) {
+          const prev = para.lines[para.lines.length - 1];
+          const gap = prev.y - ln.y;
+          const lg = lineGap(prev.size);
+          const prevText = lineText(prev).trim();
+          const Rp = rightOf(prev);
+          const prevShort = prev.x1 < Rp - Math.max(2 * prev.size, colW * 0.12);
+          const sizeChange = Math.abs(prev.size - ln.size) > 0.6;
+          const boldChange = prev.items.filter((i) => i.str.trim()).every((i) => i.bold) !== ln.items.filter((i) => i.str.trim()).every((i) => i.bold);
+          const indentShift = para.lines.length >= 2 && Math.abs(ln.x0 - prev.x0) > 2 && Math.abs(para.lines[para.lines.length - 2].x0 - prev.x0) < 2;
+          // If this line's first word would have fit on the previous line, the previous line ended its paragraph.
+          const nextFirst = ln.items.find((i) => i.str.trim());
+          const word = nextFirst ? nextFirst.str.trim().split(/\s+/)[0] : '';
+          const wordW = nextFirst ? nextFirst.w * (word.length / Math.max(1, nextFirst.str.trim().length)) : 0;
+          const wouldFit = prev.x1 + prev.size * 0.35 + wordW < Rp - Math.max(6, prev.size * 0.8);
+          start = gap < 0 || gap > lg * 1.25 || sizeChange || (boldChange && prevShort) || indentShift || wouldFit || prev.hasTab || ln.hasTab ||
+            (prevShort && pdfR_SENT.test(prevText)) || (prevShort && ln.x0 > prev.x0 + prev.size);
+          if (para.list && !start && ln.x0 < para.lines[0].x0 - 1) start = true;
+        }
+        if (start) {
+          para = { page: p.n, lines: [ln], list: lm, startsPage: idx === 0 && p.n > 1 };
+          paras.push(para);
+        } else para.lines.push(ln);
+      });
+      // Continue a paragraph across a page break when the previous page ended mid-sentence on a full line.
+      const first = paras.find((x) => x.page === p.n);
+      const prevPara = paras[paras.indexOf(first) - 1];
+      if (first && prevPara && prevPara.page === p.n - 1 && !first.list && !prevPara.list) {
+        const last = prevPara.lines[prevPara.lines.length - 1];
+        if (!pdfR_SENT.test(lineText(last).trim()) && last.x1 > R - 2 * last.size && Math.abs(last.size - first.lines[0].size) < 0.6 && first.lines[0].x0 < L + 2) {
+          prevPara.lines.push(...first.lines);
+          paras.splice(paras.indexOf(first), 1);
+        }
+      }
+    }
+
+    // ---- 5. Paragraph -> block with runs, alignment, indent, spacing.
+    const sizesAbove = [...new Set(allLines.map((l) => l.size))].filter((s) => s >= bodySize * 1.15).sort((a, b) => b - a);
+    const blocks = [];
+    let prevBlockPara = null;
+    for (const para of paras) {
+      const ls = para.lines;
+      const runs = [];
+      ls.forEach((ln, li) => {
+        let items = ln.items;
+        if (li === 0 && para.list) items = items.filter((i) => i.x >= para.list.textX - 1 || !i.str.trim()).map((i) => i);
+        if (li === 0 && para.list && items.length && items[0].x < para.list.textX - 1) {
+          // marker inside the same text item
+          const m = /^\s*(\(?\d{1,3}[.)]|[•●◦▪■–\-*])\s+/.exec(items[0].str);
+          if (m) items = [{ ...items[0], str: items[0].str.slice(m[0].length) }, ...items.slice(1)];
+        }
+        let lastEnd = null, wideSpace = false;
+        if (ls.length === 1) para.cells = [];
+        for (const i of items) {
+          let str = i.str;
+          // Whitespace-only pieces: a very wide one is a column gap (tables, tab stops).
+          if (!str.trim()) { if (i.w > i.size * 1.2) wideSpace = true; continue; }
+          if (para.cells && para.cells.length === 0) para.cells.push(i.x);
+          if (lastEnd != null) {
+            const gap = i.x - lastEnd;
+            const prevRun = runs[runs.length - 1];
+            // Separators join the previous run so underlines/highlights don't start with a space.
+            if (wideSpace || gap > i.size * 2) { if (prevRun) prevRun.text = prevRun.text.replace(/\s+$/, '') + '\t'; str = str.replace(/^\s+/, ''); if (para.cells) para.cells.push(i.x); }
+            else if (!/^\s/.test(str) && gap > i.size * 0.15 && prevRun && !/\s$/.test(prevRun.text)) prevRun.text += ' ';
+          }
+          wideSpace = false;
+          lastEnd = i.x + i.w;
+          pdfR_pushRun(runs, { text: str, bold: i.bold, italic: i.italic, underline: i.underline, strike: i.strike,
+            size: i.size, color: i.color, font: i.font, link: i.link });
+        }
+        if (li < ls.length - 1 && runs.length) {
+          const lr = runs[runs.length - 1];
+          const next = ls[li + 1].items.find((i) => i.str.trim());
+          if (/[A-Za-z]-$/.test(lr.text) && next && /^[a-z]/.test(next.str.trim())) lr.text = lr.text.slice(0, -1);
+          else if (!/\s$/.test(lr.text)) lr.text += ' ';
+        }
+      });
+      // Tidy whitespace at the edges and inside runs.
+      for (const r of runs) r.text = r.text.replace(/[ \u00A0]{2,}/g, ' ');
+      while (runs.length && !runs[0].text.trim()) runs.shift();
+      while (runs.length && !runs[runs.length - 1].text.trim()) runs.pop();
+      if (!runs.length) continue;
+      runs[0].text = runs[0].text.replace(/^\s+/, '');
+      runs[runs.length - 1].text = runs[runs.length - 1].text.replace(/\s+$/, '');
+      const merged = [];
+      for (const r of runs) pdfR_pushRun(merged, r);
+      const text = merged.map((r) => r.text).join('');
+      if (!text.trim()) continue;
+
+      const size = Math.max(...ls.map((l) => l.size));
+      const block = { type: 'p', text, runs: merged.map(pdfR_cleanRun) };
+
+      // Alignment
+      const first = ls[0], last = ls[ls.length - 1];
+      const nonLast = ls.slice(0, -1);
+      const mid = (l) => (l.x0 + l.x1) / 2;
+      const fullWidth = (l) => Math.abs(l.x1 - R) < Math.max(1.5, size * 0.12);
+      if (!para.list) {
+        if (ls.every((l) => Math.abs(mid(l) - C) < Math.max(3, colW * 0.02)) && ls.every((l) => l.x0 - L > size * 1.5)) block.align = 'center';
+        else if (ls.every((l) => Math.abs(l.x1 - R) < Math.max(2, size * 0.2)) && first.x0 - L > size * 3) block.align = 'right';
+        else if (nonLast.length && nonLast.every(fullWidth) && (nonLast.length >= 2 || Math.abs(nonLast[0].x1 - R) < 0.8)) block.align = 'justify';
+        // Indents (left / first line), relative to the text column.
+        if (block.align !== 'center' && block.align !== 'right') {
+          const leftEdge = ls.length > 1 ? Math.min(...ls.slice(1).map((l) => l.x0)) : first.x0;
+          const left = Math.round(leftEdge - L);
+          const firstLine = Math.round(first.x0 - leftEdge);
+          const indent = {};
+          if (left > 3) indent.left = left;
+          if (Math.abs(firstLine) > 3) indent.firstLine = firstLine;
+          if (Object.keys(indent).length) block.indent = indent;
+        }
+      } else {
+        block.list = { kind: para.list.kind, level: 0 };
+        block._markerX = para.list.markerX;
+      }
+
+      // Headings: larger than body text, or a short all-bold line standing alone.
+      const allBold = merged.every((r) => r.bold || !r.text.trim());
+      const short = text.length < 120 && ls.length <= 2 && !para.list;
+      if (short && size >= bodySize * 1.15) { block.type = 'h'; block.level = Math.min(6, sizesAbove.indexOf(size) + 1 || 1); }
+      else if (short && allBold && text.length < 80 && !/[.,;:]$/.test(text)) { block.type = 'h'; block.level = Math.min(6, sizesAbove.length + 1); }
+
+      // Spacing: measured baseline-to-baseline distance (lineAt, pt) and the extra gap above.
+      const spacing = {};
+      const inner = ls.length > 1 ? pdfR_median(ls.slice(1).map((l, k) => ls[k].y - l.y)) : lineGap(size);
+      spacing.lineAt = Math.round(Math.max(size, Math.min(size * 3, inner)) * 10) / 10;
+      if (prevBlockPara && prevBlockPara.page === para.page) {
+        const pl = prevBlockPara.lines[prevBlockPara.lines.length - 1];
+        const before = (pl.y - first.y) - spacing.lineAt;
+        if (before > 1) spacing.before = Math.round(before);
+      }
+      block.spacing = spacing;
+      if (para.startsPage) block.pageBreakBefore = true;
+      if (para.cells && para.cells.length >= 2 && !para.list) block._cells = para.cells;
+      block._page = para.page; block._top = first.y + size;
+      blocks.push(block);
+      prevBlockPara = para;
+    }
+
+    // ---- 5b. List levels relative to the outermost marker position of each list.
+    for (let i = 0; i < blocks.length; i++) {
+      if (!blocks[i].list) continue;
+      let j = i;
+      while (j < blocks.length && blocks[j].list) j++;
+      const minX = Math.min(...blocks.slice(i, j).map((b) => b._markerX));
+      for (let k = i; k < j; k++) {
+        const d = blocks[k]._markerX - minX;
+        blocks[k].list.level = d < 6 ? 0 : Math.min(8, Math.max(1, Math.round(d / 36)));
+        delete blocks[k]._markerX;
+      }
+      i = j - 1;
+    }
+
+    // ---- 5c. Runs of aligned multi-column rows -> tables.
+    const splitRuns = (runs) => {
+      const cells = [[]];
+      for (const r of runs) {
+        const parts = r.text.split('\t');
+        parts.forEach((part, k) => {
+          if (k > 0) cells.push([]);
+          if (part) cells[cells.length - 1].push({ ...r, text: part });
+        });
+      }
+      return cells;
+    };
+    for (let i = 0; i < blocks.length; i++) {
+      const head = blocks[i];
+      if (!head._cells) continue;
+      const n = head._cells.length;
+      let j = i + 1;
+      while (j < blocks.length && blocks[j]._cells && blocks[j]._cells.length === n && blocks[j]._page === head._page &&
+        blocks[j]._cells.every((x, k) => Math.abs(x - head._cells[k]) < 6)) j++;
+      if (j - i >= 2) {
+        const rowsB = blocks.slice(i, j);
+        const colWidths = head._cells.map((x, k) => Math.round((k + 1 < n ? head._cells[k + 1] : R) - (k === 0 ? Math.min(x, L) : x)));
+        // The last column has no right neighbour: size it like the others rather than to the margin.
+        if (n > 1) colWidths[n - 1] = Math.min(colWidths[n - 1], Math.max(...colWidths.slice(0, -1)));
+        const rows = rowsB.map((b) => splitRuns(b.runs).map((cellRuns) => {
+          const t = cellRuns.map((r) => r.text).join('').trim();
+          return { blocks: t ? [{ type: 'p', text: t, runs: cellRuns, ...(b.align && b.align !== 'justify' ? { align: b.align } : {}) }] : [] };
+        }));
+        const table = { type: 'table', text: rowsB.map((b) => b.text.split('\t').join(' | ')).join('\n'), rows, colWidths, _page: head._page, _top: head._top };
+        if (head.pageBreakBefore) table.pageBreakBefore = true;
+        blocks.splice(i, j - i, table);
+      }
+    }
+    for (const b of blocks) delete b._cells;
+
+    // ---- 6. Images, placed in reading order by vertical position on their page.
+    for (const p of pages) {
+      for (const im of p.imgs) {
+        const top = im.y + im.h;
+        let at = blocks.findIndex((b) => b._page === p.n && b._top < top + 1);
+        if (at < 0) {
+          const lastOnPage = blocks.map((b) => b._page).lastIndexOf(p.n);
+          at = lastOnPage >= 0 ? lastOnPage + 1 : blocks.findIndex((b) => b._page > p.n);
+          if (at < 0) at = blocks.length;
+        }
+        const img = { type: 'img', text: '', data: im.data, mime: 'image/png', width: Math.round(im.w), height: Math.round(im.h), _page: p.n, _top: top };
+        const midX = im.x + im.w / 2;
+        if (Math.abs(midX - C) < colW * 0.05 && im.w < colW * 0.9) img.align = 'center';
+        else if (Math.abs(im.x + im.w - R) < 4 && im.x - L > 20) img.align = 'right';
+        const firstOnPage = blocks.findIndex((b) => b._page === p.n);
+        if (p.n > 1 && (firstOnPage < 0 || at <= firstOnPage)) {
+          img.pageBreakBefore = true;
+          if (firstOnPage >= 0) delete blocks[firstOnPage].pageBreakBefore;
+        }
+        blocks.splice(at, 0, img);
+        // The gap the image filled is no longer extra space above the next paragraph.
+        const after = blocks[at + 1];
+        if (after && after._page === p.n && after.spacing && after.spacing.before) {
+          after.spacing.before = Math.max(0, Math.round(after.spacing.before - im.h));
+          if (!after.spacing.before) delete after.spacing.before;
+        }
+      }
+    }
+    for (const b of blocks) { delete b._page; delete b._top; }
+    if (!blocks.some((b) => b.type !== 'img')) throw new UserError('No selectable text found. This looks like a scanned PDF, which needs OCR before it can be converted.');
+
+    // ---- 7. Metadata.
+    let title = '', author = '';
+    try {
+      const meta = await pdf.getMetadata();
+      title = norm(meta.info && meta.info.Title);
+      author = norm(meta.info && meta.info.Author);
+    } catch (e) { /* no metadata */ }
+    if (/^(untitled|microsoft word|document\d*)\b|\.(docx?|pdf|indd|txt)$/i.test(title)) title = '';
+    const h1 = blocks.find((b) => b.type === 'h');
+    pdf.destroy();
+    return { title: title || (h1 && h1.text.length < 100 ? h1.text : '') || fallbackTitle, author, lang: 'en', blocks, page: geometry };
+  }
+
+  // ---------- DOCX writer (rich formatting) ----------
+  // writeDocxRich(book, { keepPageBreaks, titlePage }) -> { blob, note }
+  // Uses page helpers: esc, bodyBlocks, W, FORMATS, JSZip.
+  const docxW_NS = {
+    r: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
+    wp: 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing',
+    a: 'http://schemas.openxmlformats.org/drawingml/2006/main',
+    pic: 'http://schemas.openxmlformats.org/drawingml/2006/picture',
+    rel: 'http://schemas.openxmlformats.org/package/2006/relationships',
+    ort: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/',
+  };
+  const docxW_BN = /[ঀ-৿]/;
+  const docxW_BN_FONT = /bangla|bengali|lipi|kalpurush|siyam|nikosh|vrinda|nirmala|shonar|mukti|ekushey|akaash|lohit|hind siliguri|baloo da|tiro bangla|galada|atma|mina\b/i;
+  const docxW_XML = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+
+  const docxW_num = (v) => (typeof v === 'number' && isFinite(v) ? v : null);
+  const docxW_tw = (pt) => Math.round(pt * 20);
+  // Text safe for XML: drop lone surrogates (esc() handles the rest).
+  const docxW_clean = (s) => String(s == null ? '' : s).replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '');
+  const docxW_font = (f) => {
+    const s = docxW_clean(f).replace(/[\u0000-\u001F]/g, '').trim().slice(0, 64);
+    return s || null;
+  };
+  const docxW_csFont = (font, text) => (font && docxW_BN_FONT.test(font)) ? font : (docxW_BN.test(text || '') ? 'Nirmala UI' : (font || 'Nirmala UI'));
+
+  function docxW_url(u) {
+    if (typeof u !== 'string') return null;
+    const s = u.trim();
+    if (!/^(https?:|mailto:|ftp:)/i.test(s)) return null;
+    try { return new URL(s).href; } catch (e) { return null; }
+  }
+
+  function docxW_lang(l) {
+    const s = String(l || '').trim().replace(/_/g, '-');
+    if (/^en$/i.test(s)) return 'en-US';
+    if (/^bn$/i.test(s)) return 'bn-BD';
+    return /^[a-z]{2,3}(-[A-Za-z0-9]{1,8})*$/i.test(s) ? s : 'en-US';
+  }
+
+  // Normalised run list for a block: sanitised, empties dropped, identical neighbours merged.
+  function docxW_runs(b) {
+    const src = Array.isArray(b.runs) && b.runs.length ? b.runs : [{ text: b.text || '' }];
+    const out = [];
+    for (const r of src) {
+      if (!r) continue;
+      const text = docxW_clean(r.text).replace(/\r\n?/g, '\n');
+      if (!text) continue;
+      const size = docxW_num(r.size);
+      const n = {
+        text,
+        bold: !!r.bold, italic: !!r.italic, underline: !!r.underline, strike: !!r.strike,
+        size: size && size > 0 ? Math.min(1638, Math.max(1, Math.round(size * 2) / 2)) : null,
+        color: typeof r.color === 'string' && /^[0-9a-f]{6}$/i.test(r.color.replace(/^#/, '')) ? r.color.replace(/^#/, '').toUpperCase() : null,
+        font: r.font ? docxW_font(r.font) : null,
+        va: r.sup ? 'superscript' : r.sub ? 'subscript' : null,
+        link: r.link ? docxW_url(r.link) : null,
+      };
+      const prev = out[out.length - 1];
+      if (prev && ['bold', 'italic', 'underline', 'strike', 'size', 'color', 'font', 'va', 'link'].every((k) => prev[k] === n[k])) prev.text += n.text;
+      else out.push(n);
+    }
+    return out;
+  }
+
+  // Most common font / size across body text (weighted by characters).
+  function docxW_defaults(blocks) {
+    const fonts = new Map(), sizes = new Map();
+    const visit = (b) => {
+      if (!b) return;
+      if (b.type === 'table' && Array.isArray(b.rows)) {
+        for (const row of b.rows) for (const c of row || []) for (const cb of (c && c.blocks) || []) visit(cb);
+        return;
+      }
+      if (b.type !== 'p' || !Array.isArray(b.runs)) return;
+      for (const r of docxW_runs(b)) {
+        const w = r.text.length;
+        if (r.font) fonts.set(r.font, (fonts.get(r.font) || 0) + w);
+        if (r.size) sizes.set(r.size, (sizes.get(r.size) || 0) + w);
+      }
+    };
+    blocks.forEach(visit);
+    const top = (m) => { let best = null, n = -1; for (const [k, v] of m) if (v > n) { best = k; n = v; } return best; };
+    return { font: top(fonts), size: top(sizes) };
+  }
+
+  function docxW_rPr(r, ctx, opts) {
+    let x = '';
+    if (opts.link) x += '<w:rStyle w:val="Hyperlink"/>';
+    const bn = docxW_BN.test(r.text);
+    if (r.font && (r.font !== ctx.font || opts.heading)) {
+      const f = esc(r.font);
+      x += `<w:rFonts w:ascii="${f}" w:hAnsi="${f}" w:eastAsia="${f}" w:cs="${esc(docxW_csFont(r.font, r.text))}"/>`;
+    }
+    if (r.bold) x += '<w:b/><w:bCs/>';
+    else if (opts.heading) x += '<w:b w:val="0"/><w:bCs w:val="0"/>';
+    if (r.italic) x += '<w:i/><w:iCs/>';
+    if (r.strike) x += '<w:strike/>';
+    if (r.color) x += `<w:color w:val="${r.color}"/>`;
+    if (r.size && (r.size !== ctx.size || opts.heading)) { const hp = Math.round(r.size * 2); x += `<w:sz w:val="${hp}"/><w:szCs w:val="${hp}"/>`; }
+    if (r.underline) x += '<w:u w:val="single"/>';
+    if (r.va) x += `<w:vertAlign w:val="${r.va}"/>`;
+    if (bn) x += '<w:lang w:bidi="bn-BD"/>';
+    return x ? `<w:rPr>${x}</w:rPr>` : '';
+  }
+
+  // Run content: tabs and line breaks become w:tab / w:br.
+  function docxW_t(text) {
+    let x = '';
+    for (const part of text.split(/(\t|\n)/)) {
+      if (part === '\t') x += '<w:tab/>';
+      else if (part === '\n') x += '<w:br/>';
+      else if (part) x += `<w:t xml:space="preserve">${esc(part)}</w:t>`;
+    }
+    return x;
+  }
+
+  function docxW_inline(b, ctx, heading) {
+    const runs = docxW_runs(b);
+    // A heading without its own runs keeps the heading style's look.
+    const richHeading = heading && Array.isArray(b.runs) && b.runs.length > 0;
+    let x = '';
+    for (let i = 0; i < runs.length;) {
+      const link = runs[i].link;
+      if (link) {
+        let rid = ctx.links.get(link);
+        if (!rid) { rid = 'rId' + (ctx.nextRel++); ctx.links.set(link, rid); ctx.rels.push(`<Relationship Id="${rid}" Type="${docxW_NS.ort}hyperlink" Target="${esc(link)}" TargetMode="External"/>`); }
+        let inner = '';
+        while (i < runs.length && runs[i].link === link) { inner += `<w:r>${docxW_rPr(runs[i], ctx, { link: true, heading: richHeading })}${docxW_t(runs[i].text)}</w:r>`; i++; }
+        x += `<w:hyperlink r:id="${rid}" w:history="1">${inner}</w:hyperlink>`;
+        ctx.stats.links++;
+      } else {
+        x += `<w:r>${docxW_rPr(runs[i], ctx, { heading: richHeading })}${docxW_t(runs[i].text)}</w:r>`;
+        i++;
+      }
+    }
+    return x;
+  }
+
+  function docxW_pPr(b, ctx, extra) {
+    let x = '';
+    if (extra.style) x += `<w:pStyle w:val="${extra.style}"/>`;
+    if (extra.pageBreak) x += '<w:pageBreakBefore/>';
+    if (extra.numId) x += `<w:numPr><w:ilvl w:val="${extra.ilvl}"/><w:numId w:val="${extra.numId}"/></w:numPr>`;
+    const sp = b.spacing || {};
+    const before = docxW_num(sp.before), after = docxW_num(sp.after), line = docxW_num(sp.line), lineAt = docxW_num(sp.lineAt);
+    let s = '';
+    if (before != null && before >= 0) s += ` w:before="${Math.min(31680, docxW_tw(before))}"`;
+    if (after != null && after >= 0) s += ` w:after="${Math.min(31680, docxW_tw(after))}"`;
+    // lineAt: the source's measured baseline-to-baseline distance in pt (PDF sources).
+    if (lineAt != null && lineAt > 0) s += ` w:line="${Math.min(31680, docxW_tw(lineAt))}" w:lineRule="atLeast"`;
+    else if (line != null && line > 0) s += ` w:line="${Math.round(Math.min(10, Math.max(0.5, line)) * 240)}" w:lineRule="auto"`;
+    if (s) x += `<w:spacing${s}/>`;
+    if (!extra.numId && b.indent) {
+      const l = docxW_num(b.indent.left), r = docxW_num(b.indent.right), f = docxW_num(b.indent.firstLine);
+      let ind = '';
+      if (l) ind += ` w:left="${docxW_tw(l)}"`;
+      if (r) ind += ` w:right="${docxW_tw(r)}"`;
+      if (f && f > 0) ind += ` w:firstLine="${docxW_tw(f)}"`;
+      else if (f && f < 0) ind += ` w:hanging="${docxW_tw(-f)}"`;
+      if (ind) x += `<w:ind${ind}/>`;
+    }
+    const jc = { left: 'left', center: 'center', right: 'right', justify: 'both' }[b.align];
+    if (jc) x += `<w:jc w:val="${jc}"/>`;
+    return x ? `<w:pPr>${x}</w:pPr>` : '';
+  }
+
+  // Paragraph or heading. listInfo = { numId, ilvl } for list items.
+  function docxW_para(b, ctx, listInfo) {
+    const heading = b.type === 'h';
+    const level = Math.min(6, Math.max(1, Math.round(docxW_num(b.level) || 1)));
+    const style = heading ? 'Heading' + level : listInfo ? 'ListParagraph' : null;
+    const pageBreak = !!(ctx.keepPageBreaks && b.pageBreakBefore);
+    if (pageBreak) ctx.stats.breaks++;
+    return `<w:p>${docxW_pPr(b, ctx, { style, pageBreak, numId: listInfo && listInfo.numId, ilvl: listInfo && listInfo.ilvl })}${docxW_inline(b, ctx, heading)}</w:p>`;
+  }
+
+  function docxW_imgInfo(data) {
+    const d = data;
+    if (d.length > 24 && d[0] === 0x89 && d[1] === 0x50 && d[2] === 0x4E && d[3] === 0x47) {
+      const w = (d[16] << 24 | d[17] << 16 | d[18] << 8 | d[19]) >>> 0, h = (d[20] << 24 | d[21] << 16 | d[22] << 8 | d[23]) >>> 0;
+      return { ext: 'png', w, h };
+    }
+    if (d.length > 4 && d[0] === 0xFF && d[1] === 0xD8) {
+      let w = 0, h = 0;
+      for (let i = 2; i + 9 < d.length;) {
+        if (d[i] !== 0xFF) { i++; continue; }
+        const m = d[i + 1];
+        if (m === 0xD8 || m === 0x01 || (m >= 0xD0 && m <= 0xD7) || m === 0xFF) { i += m === 0xFF ? 1 : 2; continue; }
+        const len = d[i + 2] << 8 | d[i + 3];
+        if (m >= 0xC0 && m <= 0xCF && m !== 0xC4 && m !== 0xC8 && m !== 0xCC) { h = d[i + 5] << 8 | d[i + 6]; w = d[i + 7] << 8 | d[i + 8]; break; }
+        i += 2 + len;
+      }
+      return { ext: 'jpeg', w, h };
+    }
+    if (d.length > 10 && d[0] === 0x47 && d[1] === 0x49 && d[2] === 0x46) return { ext: 'gif', w: d[6] | d[7] << 8, h: d[8] | d[9] << 8 };
+    return null;
+  }
+
+  function docxW_image(b, ctx) {
+    let data = b.data;
+    if (data instanceof ArrayBuffer) data = new Uint8Array(data);
+    if (!(data instanceof Uint8Array) || !data.length) return '';
+    const info = docxW_imgInfo(data);
+    if (!info) return '';
+    let w = docxW_num(b.width), h = docxW_num(b.height);
+    if (!(w > 0 && h > 0)) {
+      if (!(info.w > 0 && info.h > 0)) return '';
+      w = info.w * 0.75; h = info.h * 0.75; // px at 96 dpi -> pt
+    }
+    const k = Math.min(1, ctx.textW / w, ctx.textH / h);
+    const cx = Math.max(1, Math.round(w * k * 12700)), cy = Math.max(1, Math.round(h * k * 12700));
+    const n = ++ctx.stats.images;
+    const name = `image${n}.${info.ext}`;
+    const rid = 'rId' + (ctx.nextRel++);
+    ctx.media.push({ name, data });
+    ctx.exts.add(info.ext);
+    ctx.rels.push(`<Relationship Id="${rid}" Type="${docxW_NS.ort}image" Target="media/${name}"/>`);
+    const alt = esc(docxW_clean(b.alt || '').slice(0, 2000));
+    const pageBreak = !!(ctx.keepPageBreaks && b.pageBreakBefore);
+    const jc = { left: 'left', center: 'center', right: 'right', justify: 'center' }[b.align];
+    const pPr = (pageBreak ? '<w:pageBreakBefore/>' : '') + (jc ? `<w:jc w:val="${jc}"/>` : '');
+    const id = ctx.nextDocPr++;
+    return `<w:p>${pPr ? `<w:pPr>${pPr}</w:pPr>` : ''}<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="${id}" name="Picture ${id}"${alt ? ` descr="${alt}"` : ''}/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="${docxW_NS.pic}"><pic:pic><pic:nvPicPr><pic:cNvPr id="${id}" name="${name}"${alt ? ` descr="${alt}"` : ''}/><pic:cNvPicPr><a:picLocks noChangeAspect="1" noChangeArrowheads="1"/></pic:cNvPicPr></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr bwMode="auto"><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
+  }
+
+  function docxW_table(b, ctx) {
+    const rows = (Array.isArray(b.rows) ? b.rows : []).filter((r) => Array.isArray(r) && r.length);
+    if (!rows.length) return '';
+    const span = (c) => Math.max(1, Math.round(docxW_num(c && c.colspan) || 1));
+    const cols = Math.max(...rows.map((r) => r.reduce((s, c) => s + span(c), 0)));
+    const textTw = docxW_tw(ctx.textW);
+    let grid;
+    const cw = Array.isArray(b.colWidths) ? b.colWidths.map(docxW_num) : [];
+    if (cw.length === cols && cw.every((v) => v > 0)) {
+      grid = cw.map(docxW_tw);
+      const sum = grid.reduce((s, v) => s + v, 0);
+      if (sum > textTw) grid = grid.map((v) => Math.max(144, Math.floor(v * textTw / sum)));
+    } else grid = Array(cols).fill(Math.floor(textTw / cols));
+    const total = grid.reduce((s, v) => s + v, 0);
+    const bd = (n) => `<w:${n} w:val="single" w:sz="4" w:space="0" w:color="auto"/>`;
+    let x = `<w:tbl><w:tblPr><w:tblW w:w="${total}" w:type="dxa"/><w:tblBorders>${['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map(bd).join('')}</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/></w:tblPr>`;
+    x += `<w:tblGrid>${grid.map((g) => `<w:gridCol w:w="${g}"/>`).join('')}</w:tblGrid>`;
+    for (const row of rows) {
+      x += '<w:tr>';
+      let col = 0;
+      const cells = row.slice();
+      for (let ci = 0; ci < cells.length && col < cols; ci++) {
+        const c = cells[ci] || {};
+        const s = Math.min(span(c), cols - col);
+        const w = grid.slice(col, col + s).reduce((a, v) => a + v, 0);
+        col += s;
+        let inner = '';
+        for (const cb of Array.isArray(c.blocks) ? c.blocks : []) {
+          if (cb && (cb.type === 'p' || cb.type === 'h')) inner += docxW_para(cb, ctx, null);
+        }
+        x += `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${s > 1 ? `<w:gridSpan w:val="${s}"/>` : ''}</w:tcPr>${inner || '<w:p/>'}</w:tc>`;
+      }
+      while (col < cols) { x += `<w:tc><w:tcPr><w:tcW w:w="${grid[col]}" w:type="dxa"/></w:tcPr><w:p/></w:tc>`; col++; }
+      x += '</w:tr>';
+    }
+    ctx.stats.tables++;
+    return x + '</w:tbl>';
+  }
+
+  function docxW_numbering(numbered) {
+    const bullets = ['•', 'o', '▪'];
+    const fmts = ['decimal', 'lowerLetter', 'lowerRoman'];
+    const lvls = (bullet) => Array.from({ length: 9 }, (_, i) => {
+      const ind = `<w:pPr><w:ind w:left="${720 * (i + 1)}" w:hanging="360"/></w:pPr>`;
+      if (bullet) {
+        const ch = bullets[i % 3];
+        return `<w:lvl w:ilvl="${i}"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="${ch}"/><w:lvlJc w:val="left"/>${ind}${ch === 'o' ? '<w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New" w:cs="Courier New" w:hint="default"/></w:rPr>' : ''}</w:lvl>`;
+      }
+      return `<w:lvl w:ilvl="${i}"><w:start w:val="1"/><w:numFmt w:val="${fmts[i % 3]}"/><w:lvlText w:val="%${i + 1}."/><w:lvlJc w:val="${i % 3 === 2 ? 'right' : 'left'}"/>${ind}</w:lvl>`;
+    }).join('');
+    let x = `<w:numbering xmlns:w="${W}">`;
+    x += `<w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="hybridMultilevel"/>${lvls(true)}</w:abstractNum>`;
+    x += `<w:abstractNum w:abstractNumId="1"><w:multiLevelType w:val="hybridMultilevel"/>${lvls(false)}</w:abstractNum>`;
+    x += '<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>';
+    for (const id of numbered) {
+      x += `<w:num w:numId="${id}"><w:abstractNumId w:val="1"/>${Array.from({ length: 9 }, (_, i) => `<w:lvlOverride w:ilvl="${i}"><w:startOverride w:val="1"/></w:lvlOverride>`).join('')}</w:num>`;
+    }
+    return docxW_XML + x + '</w:numbering>';
+  }
+
+  function docxW_styles(ctx, pageBook) {
+    const f = esc(ctx.font), cs = esc(docxW_csFont(ctx.font, ''));
+    const hp = Math.round(ctx.size * 2);
+    const lang = esc(ctx.lang);
+    const normalSp = pageBook ? '<w:spacing w:after="0" w:line="240" w:lineRule="auto"/>' : '<w:spacing w:after="160" w:line="300" w:lineRule="auto"/>';
+    const hSizes = [36, 30, 26, 24, 22, 22];
+    const hSp = pageBook ? [[240, 120], [240, 120], [200, 80], [200, 80], [160, 60], [160, 60]] : [[480, 160], [360, 120], [280, 100], [240, 80], [200, 80], [200, 80]];
+    const heads = hSizes.map((sz, i) => `<w:style w:type="paragraph" w:styleId="Heading${i + 1}"><w:name w:val="heading ${i + 1}"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:uiPriority w:val="9"/><w:qFormat/><w:pPr><w:keepNext/><w:keepLines/><w:spacing w:before="${hSp[i][0]}" w:after="${hSp[i][1]}"/><w:outlineLvl w:val="${i}"/></w:pPr><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:eastAsia="Arial"/><w:b/><w:bCs/>${i >= 4 ? '<w:i/><w:iCs/>' : ''}<w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr></w:style>`).join('\n');
+    return docxW_XML + `<w:styles xmlns:w="${W}">
+<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="${f}" w:hAnsi="${f}" w:eastAsia="${f}" w:cs="${cs}"/><w:sz w:val="${hp}"/><w:szCs w:val="${hp}"/><w:lang w:val="${lang}" w:eastAsia="${lang}"${ctx.hasBn ? ' w:bidi="bn-BD"' : ''}/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr>${normalSp}</w:pPr></w:pPrDefault></w:docDefaults>
+<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>
+<w:style w:type="character" w:default="1" w:styleId="DefaultParagraphFont"><w:name w:val="Default Paragraph Font"/><w:uiPriority w:val="1"/><w:semiHidden/><w:unhideWhenUsed/></w:style>
+<w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:uiPriority w:val="99"/><w:semiHidden/><w:unhideWhenUsed/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style>
+<w:style w:type="numbering" w:default="1" w:styleId="NoList"><w:name w:val="No List"/><w:uiPriority w:val="99"/><w:semiHidden/><w:unhideWhenUsed/></w:style>
+<w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="120"/></w:pPr><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:eastAsia="Arial"/><w:b/><w:bCs/><w:sz w:val="52"/><w:szCs w:val="52"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="480"/></w:pPr><w:rPr><w:color w:val="4A5260"/><w:sz w:val="28"/><w:szCs w:val="28"/></w:rPr></w:style>
+${heads}
+<w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:basedOn w:val="Normal"/><w:uiPriority w:val="34"/><w:qFormat/><w:pPr><w:ind w:left="720"/><w:contextualSpacing/></w:pPr></w:style>
+<w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:basedOn w:val="DefaultParagraphFont"/><w:uiPriority w:val="99"/><w:unhideWhenUsed/><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/></w:rPr></w:style>
+</w:styles>`;
+  }
+
+  function docxW_section(page) {
+    let w = 11906, h = 16838, m = { top: 1440, right: 1440, bottom: 1440, left: 1440 };
+    if (page && docxW_num(page.width) > 72 && docxW_num(page.height) > 72) {
+      w = Math.min(31680, docxW_tw(page.width)); h = Math.min(31680, docxW_tw(page.height));
+      const pm = page.margins || {};
+      const g = (v) => { const n = docxW_num(v); return n != null && n >= 0 ? docxW_tw(n) : 1440; };
+      m = { top: g(pm.top), right: g(pm.right), bottom: g(pm.bottom), left: g(pm.left) };
+      // Keep at least 1" of text width / height.
+      const fit = (a, b, size) => { const room = size - 1440; if (m[a] + m[b] > room) { const k = Math.max(0, room) / (m[a] + m[b]); m[a] = Math.floor(m[a] * k); m[b] = Math.floor(m[b] * k); } };
+      fit('left', 'right', w); fit('top', 'bottom', h);
+    }
+    return { w, h, m, landscape: w > h };
+  }
+
+  async function writeDocxRich(book, opts) {
+    opts = opts || {};
+    const pageBook = !!book.page;
+    const titlePage = opts.titlePage != null ? !!opts.titlePage : !pageBook;
+    const blocks = (titlePage ? bodyBlocks(book) : book.blocks || []).filter(Boolean);
+    const sec = docxW_section(book.page);
+    const def = docxW_defaults(blocks);
+    const ctx = {
+      font: def.font || 'Georgia', size: def.size || 12, lang: docxW_lang(book.lang),
+      keepPageBreaks: !!opts.keepPageBreaks,
+      textW: (sec.w - sec.m.left - sec.m.right) / 20, textH: (sec.h - sec.m.top - sec.m.bottom) / 20 - 12,
+      rels: [], links: new Map(), media: [], exts: new Set(), nextRel: 10, nextDocPr: 1,
+      stats: { images: 0, tables: 0, links: 0, lists: 0, breaks: 0 },
+    };
+
+    ctx.hasBn = docxW_BN.test([book.title, book.author, ...blocks.map((b) => b.text)].join(' '));
+    let body = '';
+    if (titlePage) {
+      body += `<w:p><w:pPr><w:pStyle w:val="Title"/></w:pPr>${docxW_inline({ text: book.title || '' }, ctx, false)}</w:p>`;
+      if (book.author) body += `<w:p><w:pPr><w:pStyle w:val="Subtitle"/></w:pPr>${docxW_inline({ text: book.author }, ctx, false)}</w:p>`;
+    }
+    const numbered = [];
+    let inList = false, listNum = 0, last = '';
+    let rich = pageBook;
+    for (const b of blocks) {
+      const isList = b.type === 'p' && !!b.list;
+      if (!isList) { inList = false; listNum = 0; }
+      if (b.runs || b.align || b.indent || b.spacing || b.list) rich = true;
+      if (b.type === 'p' || b.type === 'h') {
+        let li = null;
+        if (isList) {
+          if (!inList) { inList = true; ctx.stats.lists++; }
+          const ilvl = Math.min(8, Math.max(0, Math.round(docxW_num(b.list.level) || 0)));
+          if (b.list.kind === 'number') {
+            if (!listNum) { listNum = 2 + numbered.length; numbered.push(listNum); }
+            li = { numId: listNum, ilvl };
+          } else li = { numId: 1, ilvl };
+        }
+        body += docxW_para(b, ctx, li); last = 'p';
+      } else if (b.type === 'img') {
+        rich = true;
+        const x = docxW_image(b, ctx);
+        if (x) { body += x; last = 'p'; }
+      } else if (b.type === 'table') {
+        rich = true;
+        const x = docxW_table(b, ctx);
+        if (x) {
+          if (ctx.keepPageBreaks && b.pageBreakBefore) body += '<w:p><w:pPr><w:pageBreakBefore/><w:spacing w:before="0" w:after="0"/></w:pPr></w:p>';
+          else if (last === 'tbl') body += '<w:p/>'; // keep adjacent tables apart
+          body += x; last = 'tbl';
+        }
+      }
+    }
+    if (last === 'tbl' || !body) body += '<w:p/>';
+
+    const sectPr = `<w:sectPr><w:pgSz w:w="${sec.w}" w:h="${sec.h}"${sec.landscape ? ' w:orient="landscape"' : ''}/><w:pgMar w:top="${sec.m.top}" w:right="${sec.m.right}" w:bottom="${sec.m.bottom}" w:left="${sec.m.left}" w:header="${Math.min(708, sec.m.top)}" w:footer="${Math.min(708, sec.m.bottom)}" w:gutter="0"/><w:cols w:space="708"/></w:sectPr>`;
+    const zip = new JSZip();
+    const exts = [...ctx.exts].map((e) => `<Default Extension="${e}" ContentType="image/${e}"/>`).join('');
+    const ct = 'application/vnd.openxmlformats-officedocument.wordprocessingml.';
+    zip.file('[Content_Types].xml', docxW_XML + `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>${exts}<Override PartName="/word/document.xml" ContentType="${ct}document.main+xml"/><Override PartName="/word/styles.xml" ContentType="${ct}styles+xml"/><Override PartName="/word/numbering.xml" ContentType="${ct}numbering+xml"/><Override PartName="/word/settings.xml" ContentType="${ct}settings+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>`);
+    zip.file('_rels/.rels', docxW_XML + `<Relationships xmlns="${docxW_NS.rel}"><Relationship Id="rId1" Type="${docxW_NS.ort}officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="${docxW_NS.ort}extended-properties" Target="docProps/app.xml"/></Relationships>`);
+    zip.file('word/_rels/document.xml.rels', docxW_XML + `<Relationships xmlns="${docxW_NS.rel}"><Relationship Id="rId1" Type="${docxW_NS.ort}styles" Target="styles.xml"/><Relationship Id="rId2" Type="${docxW_NS.ort}numbering" Target="numbering.xml"/><Relationship Id="rId3" Type="${docxW_NS.ort}settings" Target="settings.xml"/>${ctx.rels.join('')}</Relationships>`);
+    zip.file('word/document.xml', docxW_XML + `<w:document xmlns:w="${W}" xmlns:r="${docxW_NS.r}" xmlns:wp="${docxW_NS.wp}" xmlns:a="${docxW_NS.a}" xmlns:pic="${docxW_NS.pic}"><w:body>${body}${sectPr}</w:body></w:document>`);
+    zip.file('word/styles.xml', docxW_styles(ctx, pageBook));
+    zip.file('word/numbering.xml', docxW_numbering(numbered));
+    zip.file('word/settings.xml', docxW_XML + `<w:settings xmlns:w="${W}"><w:defaultTabStop w:val="720"/><w:characterSpacingControl w:val="doNotCompress"/><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`);
+    for (const m of ctx.media) zip.file('word/media/' + m.name, m.data, { binary: true });
+    const now = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
+    zip.file('docProps/core.xml', docxW_XML + `<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${esc(docxW_clean(book.title || ''))}</dc:title>${book.author ? `<dc:creator>${esc(docxW_clean(book.author))}</dc:creator>` : ''}<dc:language>${esc(ctx.lang)}</dc:language><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified></cp:coreProperties>`);
+    zip.file('docProps/app.xml', docxW_XML + '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>Folio</Application></Properties>');
+    const blob = await zip.generateAsync({ type: 'blob', mimeType: FORMATS.docx.mime, compression: 'DEFLATE' });
+
+    let note;
+    if (!rich) note = 'Headings use Word’s built-in styles, so the Navigation pane works.';
+    else {
+      const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+      const parts = ['Formatting'];
+      if (ctx.stats.images) parts.push(plural(ctx.stats.images, 'image'));
+      if (ctx.stats.tables) parts.push(plural(ctx.stats.tables, 'table'));
+      const kept = parts.length === 1 ? parts[0] : parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1];
+      note = `${kept} kept. Opens in Word, Google Docs and LibreOffice.`;
+    }
+    return { blob, note };
+  }
+
+  // ---------- Writers ----------
+  async function writeFile(book, target, opts, progress) {
+    switch (target) {
+      case 'epub': return writeEpub(book);
+      case 'docx': return writeDocxRich(book, { keepPageBreaks: !!opts.keepPageBreaks });
+      case 'pdf': return writePdf(book, opts.pageSize, progress);
+      case 'md': return { blob: new Blob([writeMd(book)], { type: FORMATS.md.mime }) };
+      case 'html': return { blob: new Blob([writeHtml(book)], { type: FORMATS.html.mime }) };
+      case 'txt': return { blob: new Blob([writeTxt(book)], { type: FORMATS.txt.mime }) };
+    }
+  }
+
+  function writeTxt(book) {
+    let s = book.title + '\n' + (book.author ? book.author + '\n' : '') + '\n';
+    for (const b of plainBlocks(book)) s += b.type === 'h' ? '\n' + b.text + '\n\n' : b.text.replace(/\t/g, '    ') + '\n\n';
+    return s.trimEnd() + '\n';
+  }
+
+  function writeMd(book) {
+    let s = '# ' + book.title + '\n\n' + (book.author ? '*' + book.author + '*\n\n' : '');
+    for (const b of plainBlocks(book)) {
+      if (b.type === 'h') s += '#'.repeat(Math.min(6, b.level + 1)) + ' ' + b.text + '\n\n';
+      else if (b.text.startsWith('• ')) s += '- ' + runsToMd({ ...b, text: b.text.slice(2), runs: b.runs ? b.runs.slice(1) : undefined }) + '\n\n';
+      else if (/^\d+\. /.test(b.text) && b.runs) s += b.runs[0].text + runsToMd({ ...b, runs: b.runs.slice(1) }) + '\n\n';
+      else s += runsToMd(b).replace(/^([#>*+-]|\d+\.)/, '\\$1') + '\n\n';
+    }
+    return s.trimEnd() + '\n';
+  }
+
+  function writeHtml(book) {
+    const body = plainBlocks(book).map((b) => {
+      if (b.type === 'h') { const l = Math.min(6, b.level + 1); return `<h${l}${blockStyle(b)}>${esc(b.text)}</h${l}>`; }
+      return `<p${blockStyle(b)}>${inlineHtml(b)}</p>`;
+    }).join('\n');
+    return `<!doctype html>
+<html lang="${esc(book.lang || 'en')}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(book.title)}</title>
+${book.author ? `<meta name="author" content="${esc(book.author)}">` : ''}
+<style>
+body { max-width: 40rem; margin: 3rem auto; padding: 0 1.25rem; font: 18px/1.7 Georgia, "Noto Serif", serif; color: #1b1f27; background: #fdfdfb; }
+h1, h2, h3, h4, h5, h6 { font-family: system-ui, sans-serif; line-height: 1.2; }
+h1 { font-size: 2.2rem; margin-bottom: .2rem; }
+.author { color: #555c68; margin-top: 0; }
+@media (prefers-color-scheme: dark) { body { background: #12161d; color: #e9ebe6; } .author { color: #a3aab6; } }
+</style>
+</head>
+<body>
+<header><h1>${esc(book.title)}</h1>${book.author ? `<p class="author">${esc(book.author)}</p>` : ''}</header>
+${body}
+</body>
+</html>
+`;
+  }
+
+  function splitChapters(book) {
+    const blocks = plainBlocks(book);
+    const levels = blocks.filter((b) => b.type === 'h').map((b) => b.level);
+    if (!levels.length) return [{ title: book.title, blocks }];
+    const top = Math.min(...levels);
+    const chapters = [];
+    let title = book.title, cur = [];
+    for (const b of blocks) {
+      if (b.type === 'h' && b.level === top) {
+        if (cur.length) chapters.push({ title, blocks: cur });
+        title = b.text; cur = [b];
+      } else cur.push(b);
+    }
+    if (cur.length) chapters.push({ title, blocks: cur });
+    return chapters;
+  }
+
+  async function writeEpub(book) {
+    const lang = esc(book.lang || 'en');
+    const id = 'urn:uuid:' + uuid();
+    const modified = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
+    const chapters = splitChapters(book);
+    const zip = new JSZip();
+    zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
+    zip.file('META-INF/container.xml', '<?xml version="1.0" encoding="UTF-8"?>\n<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>');
+
+    chapters.forEach((ch, i) => {
+      const first = i === 0;
+      let body = '';
+      if (first) body += `<header class="title"><h1>${esc(book.title)}</h1>${book.author ? `<p class="author">${esc(book.author)}</p>` : ''}</header>`;
+      for (const b of ch.blocks) {
+        if (b.type === 'h') { const l = Math.min(6, first ? b.level + 1 : b.level); body += `<h${l}>${esc(b.text)}</h${l}>`; }
+        else body += `<p${blockStyle(b)}>${inlineHtml(b)}</p>`;
+      }
+      zip.file(`OEBPS/chapter-${i + 1}.xhtml`, `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="${lang}" xml:lang="${lang}">
+<head><meta charset="utf-8"/><title>${esc(ch.title)}</title><link rel="stylesheet" type="text/css" href="style.css"/></head>
+<body><section epub:type="chapter">${body}</section></body></html>`);
+    });
+
+    const items = chapters.map((_, i) => `<item id="c${i + 1}" href="chapter-${i + 1}.xhtml" media-type="application/xhtml+xml"/>`).join('');
+    const spine = chapters.map((_, i) => `<itemref idref="c${i + 1}"/>`).join('');
+    zip.file('OEBPS/content.opf', `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid" xml:lang="${lang}">
+<metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="bookid">${id}</dc:identifier><dc:title>${esc(book.title)}</dc:title>${book.author ? `<dc:creator>${esc(book.author)}</dc:creator>` : ''}<dc:language>${lang}</dc:language><meta property="dcterms:modified">${modified}</meta></metadata>
+<manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/><item id="css" href="style.css" media-type="text/css"/>${items}</manifest>
+<spine toc="ncx">${spine}</spine>
+</package>`);
+    const navItems = chapters.map((c, i) => `<li><a href="chapter-${i + 1}.xhtml">${esc(c.title)}</a></li>`).join('');
+    zip.file('OEBPS/nav.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="${lang}" xml:lang="${lang}"><head><meta charset="utf-8"/><title>Contents</title></head>
+<body><nav epub:type="toc" id="toc"><h1>Contents</h1><ol>${navItems}</ol></nav></body></html>`);
+    const points = chapters.map((c, i) => `<navPoint id="n${i + 1}" playOrder="${i + 1}"><navLabel><text>${esc(c.title)}</text></navLabel><content src="chapter-${i + 1}.xhtml"/></navPoint>`).join('');
+    zip.file('OEBPS/toc.ncx', `<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head><meta name="dtb:uid" content="${id}"/></head><docTitle><text>${esc(book.title)}</text></docTitle><navMap>${points}</navMap></ncx>`);
+    zip.file('OEBPS/style.css', `body { font-family: Georgia, serif; line-height: 1.55; margin: 0 5%; }
+h1, h2, h3, h4, h5, h6 { font-family: sans-serif; line-height: 1.2; page-break-after: avoid; }
+h1 { font-size: 1.6em; margin: 1.5em 0 .8em; } h2 { font-size: 1.3em; margin: 1.4em 0 .6em; } h3 { font-size: 1.1em; margin: 1.2em 0 .5em; }
+p { margin: 0 0 .8em; }
+header.title { margin: 3em 0 2em; } header.title h1 { font-size: 2em; margin: 0 0 .3em; }
+p.author { color: #4A5260; font-size: 1.1em; }
+`);
+    const blob = await zip.generateAsync({ type: 'blob', mimeType: FORMATS.epub.mime, compression: 'DEFLATE' });
+    return { blob, note: `${chapters.length} chapter${chapters.length === 1 ? '' : 's'} with a table of contents.` };
+  }
+
+  async function writeDocx(book) {
+    const para = (style, text) => `<w:p>${style ? `<w:pPr><w:pStyle w:val="${style}"/></w:pPr>` : ''}<w:r><w:t xml:space="preserve">${esc(text)}</w:t></w:r></w:p>`;
+    let body = para('Title', book.title);
+    if (book.author) body += para('Subtitle', book.author);
+    for (const b of bodyBlocks(book)) body += b.type === 'h' ? para('Heading' + Math.min(3, Math.max(1, b.level)), b.text) : para(null, b.text);
+    const zip = new JSZip();
+    zip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>');
+    zip.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>');
+    zip.file('word/_rels/document.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
+    zip.file('word/document.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:document xmlns:w="${W}"><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr></w:body></w:document>`);
+    zip.file('word/styles.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="${W}">
+<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Georgia" w:hAnsi="Georgia" w:cs="Nirmala UI"/><w:sz w:val="24"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="160" w:line="300" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>
+<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>
+<w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="120"/></w:pPr><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:b/><w:sz w:val="52"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="480"/></w:pPr><w:rPr><w:color w:val="4A5260"/><w:sz w:val="28"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:before="480" w:after="160"/><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:b/><w:sz w:val="36"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:before="360" w:after="120"/><w:outlineLvl w:val="1"/></w:pPr><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:b/><w:sz w:val="30"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading3"><w:name w:val="heading 3"/><w:basedOn w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:before="280" w:after="100"/><w:outlineLvl w:val="2"/></w:pPr><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:b/><w:sz w:val="26"/></w:rPr></w:style>
+</w:styles>`);
+    zip.file('docProps/core.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>${esc(book.title)}</dc:title>${book.author ? `<dc:creator>${esc(book.author)}</dc:creator>` : ''}</cp:coreProperties>`);
+    const blob = await zip.generateAsync({ type: 'blob', mimeType: FORMATS.docx.mime, compression: 'DEFLATE' });
+    return { blob, note: 'Headings use Word’s built-in styles, so the Navigation pane works.' };
+  }
+
+  // PDF: vector text for Latin script, page images for scripts the built-in PDF fonts can't draw.
+  const PAGE_SIZES = { a4: [595.28, 841.89], a5: [419.53, 595.28], letter: [612, 792] };
+  const latinize = (s) => s.replace(/[‘’‚′]/g, "'").replace(/[“”„″]/g, '"')
+    .replace(/[–‒]/g, '-').replace(/—/g, ' - ').replace(/…/g, '...').replace(/•/g, '-')
+    .replace(/[\u00A0\u2009\u202F]/g, ' ').replace(/[\u200B-\u200D\uFEFF]/g, '');
+
+  async function writePdf(book, sizeKey, progress) {
+    if (!window.jspdf) throw new UserError('The PDF writer didn’t load. Check your connection and reload the page.');
+    const all = [book.title, book.author, ...book.blocks.map((b) => b.text)].join('\n');
+    if (!/[^\u0000-ÿ]/.test(latinize(all))) return writePdfVector(book, sizeKey, progress);
+    if (/[ঀ-৿]/.test(all)) {
+      const assets = await loadBangla(progress);
+      const uncovered = [...new Set(latinize(all))].filter((ch) => {
+        const cp = ch.codePointAt(0);
+        return cp > 0xFF && !assets.coverage(cp);
+      });
+      if (!uncovered.length) return writePdfShaped(book, sizeKey, progress, assets);
+    }
+    return writePdfCanvas(book, sizeKey, progress);
+  }
+
+  // ---------- Bangla PDF: real, shaped, selectable text ----------
+  const SHAPED_LIBS = {
+    pdflib: 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js',
+    fontkit: 'https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js',
+    regenerator: 'https://cdn.jsdelivr.net/npm/regenerator-runtime@0.13.11/runtime.js',
+  };
+  const BANGLA_FONTS = { body: 'fonts/NotoSerifBengali-Regular.ttf', head: 'fonts/NotoSansBengali-SemiBold.ttf' };
+  let banglaAssets = null;
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = () => reject(new UserError('The Bangla PDF writer didn’t load. Check your connection and try again.'));
+      document.head.append(s);
+    });
+  }
+
+  async function loadBangla(progress) {
+    if (banglaAssets) return banglaAssets;
+    progress('Loading Bangla fonts…');
+    await Promise.all([
+      window.PDFLib ? null : loadScript(SHAPED_LIBS.pdflib),
+      window.fontkit ? null : (window.regeneratorRuntime ? Promise.resolve() : loadScript(SHAPED_LIBS.regenerator)).then(() => loadScript(SHAPED_LIBS.fontkit)),
+    ]);
+    const [body, head] = await Promise.all(Object.values(BANGLA_FONTS).map(async (url) => {
+      const res = await fetch(url);
+      if (!res.ok) throw new UserError('The Bangla fonts couldn’t be loaded. Reload the page and try again.');
+      return new Uint8Array(await res.arrayBuffer());
+    }));
+    const fkBody = fontkit.create(body);
+    const fkHead = fontkit.create(head);
+    banglaAssets = {
+      body, head,
+      coverage: (cp) => fkBody.hasGlyphForCodePoint(cp) && fkHead.hasGlyphForCodePoint(cp),
+    };
+    return banglaAssets;
+  }
+
+  async function writePdfShaped(book, sizeKey, progress, assets) {
+    progress('Shaping Bangla text…');
+    const { PDFDocument, StandardFonts, PDFHexString, PDFName, PDFOperator, rgb, beginText, endText, setFontAndSize, setTextMatrix, showText, setFillingRgbColor } = PDFLib;
+    const [w, h] = PAGE_SIZES[sizeKey] || PAGE_SIZES.a4;
+    const pdf = await PDFDocument.create();
+    pdf.registerFontkit(fontkit);
+    pdf.setTitle(book.title);
+    if (book.author) pdf.setAuthor(book.author);
+    pdf.setCreator('Folio');
+    pdf.setProducer('Folio');
+    pdf.setLanguage(/[ঀ-৿]/.test(book.title + book.blocks.slice(0, 5).map((b) => b.text).join('')) ? 'bn' : (book.lang || 'en'));
+
+    // Full embedding: pdf-lib's subsetter drops composite glyphs, which Bangla fonts use heavily.
+    async function face(bytes, latinName) {
+      const font = await pdf.embedFont(bytes, { subset: false });
+      const fk = font.embedder && font.embedder.font ? font.embedder.font : fontkit.create(bytes);
+      return { font, fk, upm: fk.unitsPerEm, latin: await pdf.embedFont(latinName), cache: new Map() };
+    }
+    const BODY_F = await face(assets.body, StandardFonts.TimesRoman);
+    const HEAD_F = await face(assets.head, StandardFonts.HelveticaBold);
+    const INK = rgb(16 / 255, 21 / 255, 31 / 255), MUTED = rgb(74 / 255, 82 / 255, 96 / 255);
+    const winAnsi = (s) => latinize(s).replace(/[^ -~\u00A0-ÿ]/g, '?');
+
+    // Split text into runs the Bangla font covers (shaped) and the rest (standard Latin font).
+    function runsOf(F, text) {
+      const out = [];
+      for (const ch of text) {
+        const shaped = F.fk.hasGlyphForCodePoint(ch.codePointAt(0));
+        const last = out[out.length - 1];
+        if (last && last.shaped === shaped) last.text += ch; else out.push({ text: ch, shaped });
+      }
+      return out;
+    }
+    // One fontkit layout per run, with the matching glyph codes from the embedded subset.
+    function shape(F, text) {
+      let s = F.cache.get(text);
+      if (!s) {
+        const layout = F.fk.layout(text);
+        const hex = F.font.encodeText(text).asString();
+        const codes = hex.length === layout.glyphs.length * 4 ? hex.match(/.{4}/g) : null;
+        s = { layout, codes, width: layout.advanceWidth / F.upm };
+        F.cache.set(text, s);
+      }
+      return s;
+    }
+    const runWidth = (F, run, size) => run.shaped ? shape(F, run.text).width * size : F.latin.widthOfTextAtSize(winAnsi(run.text), size);
+
+    const fontKeys = new Map();
+    function keyFor(page, F) {
+      let perPage = fontKeys.get(page);
+      if (!perPage) { perPage = new Map(); fontKeys.set(page, perPage); }
+      if (!perPage.has(F)) perPage.set(F, page.node.newFontDictionary(F.font.name, F.font.ref));
+      return perPage.get(F);
+    }
+    function drawRun(page, F, run, x, y, size, color) {
+      if (!run.shaped) { page.drawText(winAnsi(run.text), { x, y, size, font: F.latin, color }); return; }
+      const s = shape(F, run.text);
+      if (!s.codes) { page.drawText(run.text, { x, y, size, font: F.font, color }); return; }
+      const k = size / F.upm;
+      // ActualText makes copy, search and screen readers get the typed (logical) order, not the visual glyph order.
+      const span = pdf.context.obj({ ActualText: PDFHexString.fromText(run.text) });
+      const ops = [PDFOperator.of('BDC', [PDFName.of('Span'), span]), beginText(), setFontAndSize(keyFor(page, F), size), setFillingRgbColor(color.red, color.green, color.blue)];
+      let pen = x;
+      s.layout.positions.forEach((p, i) => {
+        ops.push(setTextMatrix(1, 0, 0, 1, pen + p.xOffset * k, y + p.yOffset * k), showText(PDFHexString.of(s.codes[i])));
+        pen += p.xAdvance * k;
+      });
+      ops.push(endText(), PDFOperator.of('EMC'));
+      page.pushOperators(...ops);
+    }
+
+    // Greedy line breaking on spaces; long words break between grapheme clusters.
+    const seg = window.Intl && Intl.Segmenter ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null;
+    function wrap(F, text, size, maxW) {
+      const lines = [];
+      let line = [], lineW = 0;
+      const spaceW = runWidth(F, { text: ' ', shaped: F.fk.hasGlyphForCodePoint(32) }, size);
+      const pushWord = (word) => {
+        const runs = runsOf(F, word);
+        const ww = runs.reduce((n, r) => n + runWidth(F, r, size), 0);
+        const gap = line.length ? spaceW : 0;
+        if (line.length && lineW + gap + ww > maxW) { lines.push(line); line = []; lineW = 0; }
+        if (!line.length && ww > maxW) {
+          let part = '';
+          for (const g of seg ? Array.from(seg.segment(word), (x) => x.segment) : Array.from(word)) {
+            const trial = part + g;
+            if (part && runsOf(F, trial).reduce((n, r) => n + runWidth(F, r, size), 0) > maxW) { lines.push([{ runs: runsOf(F, part), gap: 0 }]); part = g; }
+            else part = trial;
+          }
+          word = part;
+          line = [{ runs: runsOf(F, word), gap: 0 }];
+          lineW = runsOf(F, word).reduce((n, r) => n + runWidth(F, r, size), 0);
+          return;
+        }
+        line.push({ runs, gap: line.length ? spaceW : 0 });
+        lineW += gap + ww;
+      };
+      for (const word of text.split(/\s+/).filter(Boolean)) pushWord(word);
+      if (line.length) lines.push(line);
+      return lines;
+    }
+    function drawLine(page, F, words, x, y, size, color) {
+      let pen = x;
+      for (const word of words) {
+        pen += word.gap;
+        for (const run of word.runs) { drawRun(page, F, run, pen, y, size, color); pen += runWidth(F, run, size); }
+      }
+    }
+
+    const M = w < 450 ? 46 : 64, width = w - 2 * M, bottom = M + 18;
+    const BODY = w < 450 ? 11 : 11.5, LEAD = BODY * 1.75;
+    let page = null, y = 0, pageNo = 0;
+    const pages = [];
+    const newPage = () => { page = pdf.addPage([w, h]); pages.push(page); y = h - M; };
+
+    // Title page
+    newPage();
+    y = h * 0.66;
+    for (const line of wrap(HEAD_F, book.title, 26, width)) { drawLine(page, HEAD_F, line, M, y, 26, INK); y -= 26 * 1.45; }
+    if (book.author) { y -= 6; for (const line of wrap(BODY_F, book.author, 13, width)) { drawLine(page, BODY_F, line, M, y, 13, MUTED); y -= 13 * 1.6; } }
+
+    newPage();
+    let count = 0;
+    for (const b of plainBlocks(book)) {
+      if (b.type === 'h') {
+        const size = { 1: 18, 2: 15 }[b.level] || 12.5;
+        const lines = wrap(HEAD_F, b.text, size, width);
+        if (y < h - M && y - lines.length * size * 1.5 - LEAD * 3 < bottom) newPage();
+        if (y < h - M) y -= size * 0.9;
+        for (const line of lines) { y -= size * 1.5; drawLine(page, HEAD_F, line, M, y, size, INK); }
+        y -= 6;
+      } else {
+        for (const line of wrap(BODY_F, b.text, BODY, width)) {
+          if (y - LEAD < bottom) newPage();
+          y -= LEAD;
+          drawLine(page, BODY_F, line, M, y, BODY, INK);
+        }
+        y -= BODY * 0.9;
+      }
+      if (++count % 200 === 0) { progress(`Laying out page ${pages.length}…`); await new Promise((r) => setTimeout(r, 0)); }
+    }
+    pages.slice(1).forEach((p, i) => {
+      const label = String(i + 1);
+      const lw = BODY_F.latin.widthOfTextAtSize(label, 8);
+      p.drawText(label, { x: (w - lw) / 2, y: M / 2, size: 8, font: BODY_F.latin, color: MUTED });
+    });
+    progress('Saving PDF…');
+    const bytes = await pdf.save();
+    return { blob: new Blob([bytes], { type: FORMATS.pdf.mime }), note: `${pages.length} pages of real Bangla text in Noto Serif Bengali. You can select, search and copy it, and it stays sharp at any zoom.` };
+  }
+
+  function writePdfVector(book, sizeKey, progress) {
+    progress('Laying out pages…');
+    const [w, h] = PAGE_SIZES[sizeKey] || PAGE_SIZES.a4;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: [w, h], compress: true });
+    doc.setProperties({ title: book.title, author: book.author || '', creator: 'Folio' });
+    const M = w < 450 ? 46 : 64, width = w - 2 * M, bottom = h - M - 14;
+    const BODY = w < 450 ? 10.5 : 11, LEAD = BODY * 1.5;
+    let y = M;
+    const newPage = () => { doc.addPage([w, h]); y = M; };
+
+    doc.setTextColor(16, 21, 31);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(28);
+    const tl = doc.splitTextToSize(latinize(book.title), width);
+    y = h * 0.32; doc.text(tl, M, y); y += tl.length * 28 * 1.15 + 8;
+    if (book.author) { doc.setFont('helvetica', 'normal'); doc.setFontSize(13); doc.setTextColor(74, 82, 96); doc.text(doc.splitTextToSize(latinize(book.author), width), M, y); doc.setTextColor(16, 21, 31); }
+
+    newPage();
+    for (const b of plainBlocks(book)) {
+      if (b.type === 'h') {
+        const size = { 1: 18, 2: 15 }[b.level] || 12.5;
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(size);
+        const lines = doc.splitTextToSize(latinize(b.text), width);
+        const need = lines.length * size * 1.2 + LEAD * 3;
+        if (y > M && y + need > bottom) newPage();
+        if (y > M) y += size * 0.9;
+        for (const line of lines) { doc.text(line, M, y + size); y += size * 1.2; }
+        if (b.level <= 2 && doc.outline) { try { doc.outline.add(null, latinize(b.text).slice(0, 120), { pageNumber: doc.getNumberOfPages() }); } catch (e) { /* bookmarks optional */ } }
+        y += 6;
+      } else {
+        doc.setFont('times', 'normal'); doc.setFontSize(BODY);
+        for (const line of doc.splitTextToSize(latinize(b.text), width)) {
+          if (y + LEAD > bottom) newPage();
+          doc.text(line, M, y + BODY); y += LEAD;
+        }
+        y += BODY * 0.9;
+      }
+    }
+    const n = doc.getNumberOfPages();
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(74, 82, 96);
+    for (let i = 2; i <= n; i++) { doc.setPage(i); doc.text(String(i - 1), w / 2, h - M / 2, { align: 'center' }); }
+    return { blob: doc.output('blob'), note: `${n} pages with selectable text and bookmarks.` };
+  }
+
+  async function writePdfCanvas(book, sizeKey, progress) {
+    const [w, h] = PAGE_SIZES[sizeKey] || PAGE_SIZES.a4;
+    const S = 3;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: [w, h], compress: true });
+    doc.setProperties({ title: latinize(book.title), creator: 'Folio' });
+    const sample = [book.title, ...book.blocks.slice(0, 20).map((b) => b.text)].join(' ').slice(0, 2000);
+    try {
+      await Promise.all([
+        document.fonts.load('400 20px "Noto Serif Bengali"', sample),
+        document.fonts.load('600 20px "Noto Sans Bengali"', sample),
+        document.fonts.load('400 20px "Literata"', sample),
+      ]);
+    } catch (e) { /* fall back to system fonts */ }
+
+    const M = w < 450 ? 46 : 64, width = w - 2 * M, bottom = h - M - 14;
+    const BODY = w < 450 ? 11 : 11.5, LEAD = BODY * 1.6;
+    const serif = '"Literata", "Noto Serif Bengali", "Noto Serif", Georgia, serif';
+    const sans = '"Bricolage Grotesque", "Noto Sans Bengali", "Noto Sans", system-ui, sans-serif';
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(w * S); canvas.height = Math.round(h * S);
+    const ctx = canvas.getContext('2d');
+    const seg = window.Intl && Intl.Segmenter ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null;
+    const graphemes = (s) => seg ? Array.from(seg.segment(s), (x) => x.segment) : Array.from(s);
+
+    function wrap(text, font, max) {
+      ctx.font = font;
+      const out = [];
+      let line = '';
+      for (const tok of text.match(/\S+\s*/g) || []) {
+        const trial = line + tok;
+        if (ctx.measureText(trial.trimEnd()).width <= max) { line = trial; continue; }
+        if (line) out.push(line.trimEnd());
+        if (ctx.measureText(tok.trimEnd()).width <= max) { line = tok; continue; }
+        line = '';
+        for (const g of graphemes(tok)) {
+          if (ctx.measureText(line + g).width > max && line) { out.push(line); line = ''; }
+          line += g;
+        }
+      }
+      if (line.trim()) out.push(line.trimEnd());
+      return out;
+    }
+
+    let pageNo = 0, y = M, pages = 0;
+    const fresh = () => { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.setTransform(S, 0, 0, S, 0, 0); ctx.fillStyle = '#10151F'; ctx.textBaseline = 'alphabetic'; y = M; };
+    const commit = () => {
+      if (pageNo > 0) { ctx.font = `8px ${sans}`; ctx.fillStyle = '#4A5260'; ctx.textAlign = 'center'; ctx.fillText(String(pageNo), w / 2, h - M / 2); ctx.textAlign = 'left'; }
+      if (pages > 0) doc.addPage([w, h]);
+      doc.addImage(canvas.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, w, h, undefined, 'FAST');
+      pages++;
+    };
+    const newPage = () => { commit(); pageNo++; fresh(); if (pageNo % 5 === 0) progress(`Drawing page ${pageNo + 1}…`); };
+
+    // Title page
+    fresh();
+    const tFont = `800 28px ${sans}`;
+    y = h * 0.32;
+    ctx.font = tFont;
+    for (const line of wrap(book.title, tFont, width)) { ctx.fillText(line, M, y); y += 34; }
+    if (book.author) { const aFont = `400 13px ${serif}`; ctx.font = aFont; ctx.fillStyle = '#4A5260'; y += 6; for (const line of wrap(book.author, aFont, width)) { ctx.fillText(line, M, y); y += 18; } ctx.fillStyle = '#10151F'; }
+    newPage();
+
+    for (const b of plainBlocks(book)) {
+      if (b.type === 'h') {
+        const size = { 1: 18, 2: 15 }[b.level] || 12.5;
+        const font = `600 ${size}px ${sans}`;
+        const lines = wrap(b.text, font, width);
+        if (y > M && y + lines.length * size * 1.3 + LEAD * 3 > bottom) newPage();
+        if (y > M) y += size * 0.9;
+        ctx.font = font;
+        for (const line of lines) { y += size * 1.3; ctx.fillText(line, M, y); }
+        y += 8;
+      } else {
+        const font = `400 ${BODY}px ${serif}`;
+        for (const line of wrap(b.text, font, width)) {
+          if (y + LEAD > bottom) newPage();
+          y += LEAD; ctx.font = font; ctx.fillText(line, M, y);
+        }
+        y += BODY * 0.6;
+      }
+      if (pages > 400) throw new UserError('This document is too long to draw as a PDF here. Try EPUB or DOCX instead.');
+    }
+    commit();
+    return { blob: doc.output('blob'), note: `${pages} pages. This text uses a script the PDF’s built-in fonts can’t draw, so pages are images and the text isn’t selectable. EPUB or DOCX keep it as real text.` };
+  }
+
+  // ---------- Sample (shown on first load) ----------
+  const SAMPLE = `# A Field Guide to Reading Formats
+
+## Why the format matters
+
+The same book can feel completely different depending on the file it lives in. A PDF keeps every line exactly where the designer put it. An EPUB lets the text flow to fit the screen in your hand.
+
+Picking the right format for where you read saves a lot of pinching and zooming.
+
+## PDF
+
+PDF is a page format. It is ideal for printing, forms and anything where layout matters, such as papers with equations or magazines with columns.
+
+On a phone, a two-column PDF means constant scrolling sideways. Converting it to EPUB turns the columns into one readable stream of text.
+
+## EPUB
+
+EPUB is the standard ebook format. Apple Books, Google Play Books, Kobo and most reading apps open it, and Kindle accepts it through Send to Kindle.
+
+- Text reflows to any screen size
+- Readers can change the font and size
+- Chapters appear in the table of contents
+
+## Word documents
+
+DOCX is best when you still need to edit. Converting an ebook to DOCX lets you quote, annotate or reuse passages in Word or Google Docs.
+
+## Plain text and Markdown
+
+Plain text opens everywhere and lasts forever. Markdown adds headings and lists while staying readable as plain text.
+`;
+
+  // ---------- UI ----------
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    drop: $('drop'), file: $('file'), choose: $('choose'), filerow: $('filerow'), badge: $('badge'), fname: $('fname'),
+    sampletag: $('sampletag'), fsub: $('fsub'), change: $('change'), targets: $('targets'), title: $('title'), author: $('author'),
+    pagesizeField: $('pagesize-field'), pagesize: $('pagesize'), breaksField: $('breaks-field'), breaks: $('breaks'), go: $('go'), progress: $('progress'), status: $('status'),
+    error: $('error'), result: $('result'), rtitle: $('rtitle'), rsub: $('rsub'), rnote: $('rnote'), download: $('download'),
+    another: $('another'), stats: $('stats'), outline: $('outline'), reader: $('reader'), toast: $('toast'),
+  };
+  const state = { source: null, book: null, target: 'epub', output: null, busy: false };
+  const downloadsReady = window.claude && typeof window.claude.use === 'function'
+    ? window.claude.use('downloads').catch(() => null) : Promise.resolve(undefined);
+
+  function formatBytes(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(n < 10240 ? 1 : 0) + ' KB';
+    return (n / 1024 / 1024).toFixed(1) + ' MB';
+  }
+  let toastTimer;
+  function toast(msg) {
+    els.toast.textContent = msg; els.toast.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { els.toast.hidden = true; }, 3200);
+  }
+  function setBusy(busy, msg) {
+    state.busy = busy;
+    els.progress.hidden = !busy;
+    els.status.textContent = msg || '';
+    els.go.disabled = busy || !state.book;
+    els.choose.disabled = busy; els.change.disabled = busy;
+    for (const input of els.targets.querySelectorAll('input')) input.disabled = busy || input.value === (state.source && state.source.kind);
+  }
+  function showError(msg) { els.error.textContent = msg; els.error.hidden = !msg; }
+  function clearResult() { state.output = null; els.result.hidden = true; }
+
+  function renderTargets() {
+    els.targets.innerHTML = '';
+    for (const [key, f] of Object.entries(FORMATS)) {
+      const label = document.createElement('label');
+      label.className = 'chip';
+      const input = document.createElement('input');
+      input.type = 'radio'; input.name = 'target'; input.value = key; input.id = 'target-' + key;
+      input.checked = key === state.target;
+      input.disabled = state.busy || (state.source && key === state.source.kind);
+      input.addEventListener('change', () => { state.target = key; clearResult(); showError(''); syncTarget(); });
+      const span = document.createElement('span');
+      span.textContent = f.label;
+      if (state.source && key === state.source.kind) span.title = 'This is the file’s current format';
+      label.append(input, span);
+      els.targets.append(label);
+    }
+  }
+  function syncTarget() {
+    els.go.textContent = 'Convert to ' + FORMATS[state.target].label;
+    els.pagesizeField.hidden = state.target !== 'pdf';
+    els.breaksField.hidden = !(state.target === 'docx' && state.source && state.source.kind === 'pdf');
+  }
+
+  // Preview: show the formatting that will be carried over (built with textContent only).
+  let previewUrls = [];
+  function previewRuns(el, b) {
+    const runs = b.runs && b.runs.length ? b.runs : [{ text: b.text }];
+    for (const r of runs) {
+      const s = document.createElement(r.link ? 'a' : 'span');
+      s.textContent = r.text.replace(/\t/g, '    ');
+      if (r.link && /^(https?:|mailto:)/i.test(r.link)) { s.href = r.link; s.target = '_blank'; s.rel = 'noopener'; }
+      if (r.bold) s.style.fontWeight = '700';
+      if (r.italic) s.style.fontStyle = 'italic';
+      const deco = [r.underline && 'underline', r.strike && 'line-through'].filter(Boolean).join(' ');
+      if (deco) s.style.textDecoration = deco;
+      if (r.color && /^[0-9A-Fa-f]{6}$/.test(r.color)) s.style.color = '#' + r.color;
+      if (r.sup) s.style.verticalAlign = 'super';
+      if (r.sub) s.style.verticalAlign = 'sub';
+      el.append(s);
+    }
+  }
+  function previewBlock(b, num) {
+    if (b.type === 'img') {
+      const fig = document.createElement('figure');
+      fig.className = 'r-img';
+      if (b.align === 'center') fig.style.textAlign = 'center';
+      if (b.align === 'right') fig.style.textAlign = 'right';
+      const img = document.createElement('img');
+      const url = URL.createObjectURL(new Blob([b.data], { type: b.mime || 'image/png' }));
+      previewUrls.push(url);
+      img.src = url; img.alt = b.alt || 'Image from the document';
+      if (b.width) img.style.width = `min(100%, ${Math.round(b.width * 1.333)}px)`;
+      fig.append(img);
+      return fig;
+    }
+    if (b.type === 'table') {
+      const wrap = document.createElement('div');
+      wrap.className = 'r-table';
+      const table = document.createElement('table');
+      for (const row of b.rows || []) {
+        const tr = document.createElement('tr');
+        for (const cell of row) {
+          const td = document.createElement('td');
+          if (cell.colspan > 1) td.colSpan = cell.colspan;
+          for (const cb of cell.blocks || []) { const p = document.createElement('div'); previewRuns(p, cb); td.append(p); }
+          tr.append(td);
+        }
+        table.append(tr);
+      }
+      wrap.append(table);
+      return wrap;
+    }
+    if (b.type !== 'p' && b.type !== 'h') return null;
+    const el = document.createElement(b.type === 'h' ? 'h3' : 'p');
+    if (b.type === 'h') el.className = 'l' + Math.min(3, b.level);
+    if (b.align && b.align !== 'left') el.style.textAlign = b.align;
+    if (b.indent && b.indent.left) el.style.marginLeft = Math.round(b.indent.left) + 'pt';
+    if (b.indent && b.indent.firstLine) el.style.textIndent = Math.round(b.indent.firstLine) + 'pt';
+    if (b.list) {
+      el.className = 'r-li';
+      el.style.marginLeft = (1.4 + b.list.level * 1.4) + 'em';
+      const m = document.createElement('span');
+      m.className = 'r-marker';
+      m.textContent = b.list.kind === 'number' ? num + '.' : (b.list.level % 2 ? '◦' : '•');
+      el.append(m);
+    }
+    previewRuns(el, b);
+    return el;
+  }
+
+  function renderPreview() {
+    const book = state.book;
+    els.stats.innerHTML = '';
+    els.outline.innerHTML = '';
+    els.reader.innerHTML = '';
+    if (!book) {
+      const p = document.createElement('p'); p.className = 'placeholder'; p.textContent = 'Choose a file to see its text here before you convert it.';
+      els.reader.append(p); return;
+    }
+    const words = book.blocks.reduce((n, b) => n + (b.text.match(/\S+/g) || []).length, 0);
+    const heads = book.blocks.filter((b) => b.type === 'h');
+    const stat = (v, l) => { const s = document.createElement('span'); const b = document.createElement('b'); b.textContent = v; s.append(b, ' ' + l); els.stats.append(s); };
+    stat(words.toLocaleString(), 'words');
+    stat(heads.length.toLocaleString(), heads.length === 1 ? 'heading' : 'headings');
+    stat(Math.max(1, Math.round(words / 230)) + ' min', 'read');
+
+    if (!heads.length) {
+      const li = document.createElement('li'); li.className = 'empty'; li.textContent = 'No headings found. The output will be one chapter.'; els.outline.append(li);
+    } else {
+      for (const h of heads.slice(0, 60)) { const li = document.createElement('li'); li.className = 'l' + Math.min(3, h.level); li.textContent = h.text; els.outline.append(li); }
+      if (heads.length > 60) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = `…and ${heads.length - 60} more`; els.outline.append(li); }
+    }
+
+    const t = document.createElement('h3'); t.className = 'r-title'; t.textContent = els.title.value || book.title; els.reader.append(t);
+    const author = els.author.value || book.author;
+    if (author) { const a = document.createElement('p'); a.className = 'r-author'; a.textContent = author; els.reader.append(a); }
+    for (const u of previewUrls) URL.revokeObjectURL(u);
+    previewUrls = [];
+    const all = bodyBlocks(book);
+    const shown = all.slice(0, 120);
+    let num = 0;
+    for (const b of shown) {
+      num = b.list && b.list.kind === 'number' ? num + 1 : 0;
+      const el = previewBlock(b, num);
+      if (el) els.reader.append(el);
+    }
+    const rest = all.length - shown.length;
+    if (rest > 0) { const m = document.createElement('p'); m.className = 'more'; m.textContent = `…${rest.toLocaleString()} more paragraphs not shown in the preview. All of them are converted.`; els.reader.append(m); }
+  }
+
+  function showSource() {
+    const s = state.source;
+    els.drop.hidden = !!s;
+    els.filerow.hidden = !s;
+    if (!s) return;
+    els.badge.textContent = s.kind;
+    els.fname.textContent = s.name;
+    els.sampletag.hidden = !s.sample;
+    els.fsub.textContent = s.sample ? 'Example document · ' + formatBytes(s.size) : FORMATS[s.kind].label + ' · ' + formatBytes(s.size);
+  }
+
+  async function openSource(source, buf) {
+    clearResult(); showError('');
+    state.source = source; state.book = null;
+    showSource(); renderTargets();
+    setBusy(true, 'Reading ' + FORMATS[source.kind].label + '…');
+    try {
+      const fallback = source.name.replace(/\.[^.]+$/, '') || 'Document';
+      state.book = await readFile(buf, source.kind, fallback, (m) => { els.status.textContent = m; });
+      els.title.value = state.book.title;
+      els.author.value = state.book.author || '';
+      if (state.target === source.kind || !source.keepTarget) state.target = DEFAULT_TARGET[source.kind];
+    } catch (e) {
+      console.error(e);
+      showError(e instanceof UserError ? e.message : 'Couldn’t read this file. It may be damaged or in an unusual format.');
+    } finally {
+      setBusy(false);
+      renderTargets(); syncTarget(); renderPreview();
+    }
+  }
+
+  async function handleFile(file) {
+    if (!file) return;
+    const extRaw = (file.name.split('.').pop() || '').toLowerCase();
+    const kind = EXT_ALIAS[extRaw] || extRaw;
+    if (!FORMATS[kind]) {
+      const known = ['mobi', 'azw', 'azw3', 'doc', 'cbz', 'rtf', 'odt', 'pages'];
+      showError(known.includes(extRaw)
+        ? `${extRaw.toUpperCase()} files aren’t supported yet. Folio opens PDF, EPUB, DOCX, Markdown, HTML and TXT.`
+        : 'Folio can’t open this file type. Choose a PDF, EPUB, DOCX, Markdown, HTML or TXT file.');
+      return;
+    }
+    if (file.size > MAX_BYTES) { showError('This file is over 150 MB. Folio converts files up to 150 MB in the browser.'); return; }
+    const buf = await file.arrayBuffer();
+    await openSource({ name: file.name, kind, size: file.size, sample: false }, buf);
+  }
+
+  async function convert() {
+    if (!state.book || state.busy) return;
+    showError(''); clearResult();
+    const book = { ...state.book, title: norm(els.title.value) || state.book.title, author: norm(els.author.value) };
+    const target = state.target;
+    setBusy(true, 'Writing ' + FORMATS[target].label + '…');
+    try {
+      await new Promise((r) => setTimeout(r, 30));
+      const out = await writeFile(book, target, { pageSize: els.pagesize.value, keepPageBreaks: els.breaks.checked }, (m) => { els.status.textContent = m; });
+      const base = (book.title || 'document').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100) || 'document';
+      state.output = { blob: out.blob, filename: base + '.' + FORMATS[target].ext, target };
+      els.rtitle.textContent = `Your ${FORMATS[target].label} is ready`;
+      els.rsub.textContent = state.output.filename + ' · ' + formatBytes(out.blob.size);
+      els.rnote.textContent = out.note || '';
+      els.rnote.hidden = !out.note;
+      els.download.textContent = 'Download ' + FORMATS[target].label;
+      els.result.hidden = false;
+    } catch (e) {
+      console.error(e);
+      showError(e instanceof UserError ? e.message : 'Conversion failed: ' + (e && e.message ? e.message : 'unknown error'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function download() {
+    const out = state.output;
+    if (!out) return;
+    const dl = await downloadsReady;
+    if (dl) {
+      try {
+        await dl.save({ filename: out.filename, data: out.blob });
+        toast('Saved ' + out.filename);
+      } catch (e) {
+        const code = e && e.code;
+        if (code === 'declined') toast('Download cancelled.');
+        else if (code === 'rate_limited') toast('A save prompt is already open.');
+        else if (code === 'too_large') toast('This file is too large to save here. Try EPUB, which is smaller.');
+        else if (code === 'rejected_extension' || code === 'extension_not_enabled') toast(FORMATS[out.target].label + ' files can’t be saved from this view.');
+        else toast('Saving isn’t available in this view.');
+      }
+      return;
+    }
+    if (dl === null) { toast('Saving isn’t available in this view.'); return; }
+    // Outside the Claude viewer: a normal browser download.
+    const url = URL.createObjectURL(out.blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = out.filename; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+
+  // Events
+  els.choose.addEventListener('click', () => els.file.click());
+  els.change.addEventListener('click', () => els.file.click());
+  els.another.addEventListener('click', () => els.file.click());
+  els.file.addEventListener('change', () => { const f = els.file.files[0]; els.file.value = ''; handleFile(f); });
+  els.go.addEventListener('click', convert);
+  els.download.addEventListener('click', download);
+  els.title.addEventListener('input', () => { clearResult(); renderPreview(); });
+  els.author.addEventListener('input', () => { clearResult(); renderPreview(); });
+  els.pagesize.addEventListener('change', clearResult);
+
+  // Drag and drop anywhere on the converter panel or the page.
+  let depth = 0;
+  window.addEventListener('dragenter', (e) => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) { depth++; els.drop.classList.add('over'); if (state.source) { els.drop.hidden = false; els.filerow.hidden = true; } } });
+  window.addEventListener('dragleave', () => { depth = Math.max(0, depth - 1); if (!depth) { els.drop.classList.remove('over'); showSource(); } });
+  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('drop', (e) => {
+    e.preventDefault(); depth = 0; els.drop.classList.remove('over');
+    const f = e.dataTransfer && e.dataTransfer.files[0];
+    if (f && !state.busy) handleFile(f); else showSource();
+  });
+
+  // Start with the sample loaded so the page shows what it does.
+  if (!window.JSZip || !window.jspdf || !window.pdfjsLib) {
+    showError('Some converter components didn’t load. Check your connection and reload the page.');
+  }
+  renderTargets(); syncTarget();
+  const sampleBytes = new TextEncoder().encode(SAMPLE);
+  openSource({ name: 'field-guide-to-reading-formats.md', kind: 'md', size: sampleBytes.length, sample: true }, sampleBytes.buffer);
+})();
+</script>
+
+</body>
+</html>

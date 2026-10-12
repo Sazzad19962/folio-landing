@@ -1,6 +1,6 @@
 // Folio service worker. Bump VERSION whenever any app-shell file changes so
 // visitors get the new files; old caches are deleted on activate.
-const VERSION = 'v1';
+const VERSION = 'v2';
 const SHELL_CACHE = 'folio-shell-' + VERSION;
 const FONT_CACHE = 'folio-fonts-' + VERSION;
 
